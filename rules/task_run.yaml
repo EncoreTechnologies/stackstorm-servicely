@@ -1,0 +1,16 @@
+---
+name: "task_run"
+pack: "servicely"
+description: Gets task from Queue that was found by the sensor"
+enabled: true
+
+trigger:
+  type: "servicely.task_run"
+  parameters: {}
+
+action:
+  ref: "servicely.task_run"
+  parameters:
+    queue_name: "{{ trigger.queue_name }}"
+    record_id: "{{ trigger.record_id }}"
+    task: "{{ trigger.task }}"

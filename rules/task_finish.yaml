@@ -1,0 +1,17 @@
+---
+name: "task_finish"
+pack: "servicely"
+description: Gets task from Queue that was found by the sensor"
+enabled: true
+
+trigger:
+  type: "servicely.task_finish"
+  parameters: {}
+
+action:
+  ref: "servicely.task_finish"
+  parameters:
+    queue_name: "{{ trigger.queue_name }}"
+    record_id: "{{ trigger.record_id }}"
+    execution_id: "{{ trigger.execution_id }}"
+    task: "{{ trigger.task }}"

@@ -1,0 +1,24 @@
+---
+  class_name: "ServicelyExecutionMonitor"
+  entry_point: "servicely_execution_monitor.py"
+  description: "Sensor to find and process all messages in servicely queue"
+  poll_interval: 60
+  enabled: true
+  trigger_types:
+    - name: "task_finish"
+      description: "send task to stackstorm"
+      payload_schema:
+        type: "object"
+        properties:
+          queue_name:
+            type: "string"
+            format: "Servicely Queue name that was used"
+          record_id:
+            type: "string"
+            format: "Servicely Queue record id number"
+          execution_id:
+            type: "string"
+            format: "StackStorm Execution ID"
+          task:
+            type: "object"
+            format: "Servicely playload that was sent"

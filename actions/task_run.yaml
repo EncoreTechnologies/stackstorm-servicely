@@ -1,0 +1,29 @@
+---
+description: "Processes Servicely Queue item"
+enabled: true
+runner_type: "python-script"
+entry_point: task_run.py
+name: task_run
+pack: servicely
+parameters:
+  server:
+    type: string
+    description: The servicely server
+    default: "{{ st2kv.system.servicely.server }}"
+  token:
+    type: string
+    default: "{{ st2kv.system.servicely.token | decrypt_kv }}"
+    secret: true
+  st2_token:
+    type: string
+    default: "{{ st2kv.system.servicely.st2_token | decrypt_kv }}"
+    secret: true
+  queue_name:
+    type: "string"
+    description: "Servicely Queue name that was used"
+  record_id:
+    type: "string"
+    description: "Servicely Queue record id number"
+  task:
+    type: "object"
+    description: "Servicely playload that was sent"

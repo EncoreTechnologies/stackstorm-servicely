@@ -1,0 +1,50 @@
+---
+########################################
+# Prep
+default:
+  # specify runner tags to execute all jobs on (these need to match tags on the runner)
+  # even though some jobs (begin/end) don't need docker, they still need a tag so that
+  # a runner schedules them properly.
+  # $DOCKER_REGISTRY is defined in the local runner's in the runner config toml
+  image: $DOCKER_REGISTRY/rockylinux8-stackstorm:latest
+  tags:
+    - st2_runner
+
+stages:
+  - Setup
+  - Flake8 Tests
+  - Pylint Tests
+  - Pack Tests
+  - Cleanup
+
+cache:
+  key: "$CI_PIPELINE_ID"
+  paths:
+    - ci
+
+########################################
+# jobs
+Setup:
+  stage: Setup
+  script:
+    - make clone-ci-repo
+
+Flake8 Tests:
+  stage: Flake8 Tests
+  script:
+    - make flake8
+
+Pylint Tests:
+  stage: Pylint Tests
+  script:
+    - make pylint
+  
+Pack Tests:
+  stage: Pack Tests
+  script:
+    - make packs-tests
+
+Cleanup:
+  stage: Cleanup
+  script:
+    - make clean

@@ -1,0 +1,21 @@
+servicely:
+  description: Configuration for servicely connections
+  type: object
+  required: true
+  additionalProperties: false
+  properties:
+    server:
+      type: string
+      description: The servicely server
+      default: demo.servicely.com
+    token:
+      type: string
+      default: sericely1234
+      secret: true
+    st2_token:
+      type: string
+      default: st21234
+      secret: true
+    queue_name:
+      type: string
+      default: st2_queue

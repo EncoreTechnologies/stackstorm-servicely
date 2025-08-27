@@ -1,0 +1,35 @@
+---
+  class_name: "ServicelyQueueSensor"
+  entry_point: "servicely_queue_sensor.py"
+  description: "Sensor to find and process all messages in servicely queue"
+  poll_interval: 60
+  enabled: true
+  trigger_types:
+    - name: "task_run"
+      description: "send task to stackstorm"
+      payload_schema:
+        type: "object"
+        properties:
+          queue_name:
+            type: "string"
+            format: "Servicely Queue name that was used"
+          record_id:
+            type: "string"
+            format: "Servicely Queue record id number"
+          task:
+            type: "object"
+            format: "Servicely playload that was sent"
+    - name: "task_start"
+      description: "send task to stackstorm"
+      payload_schema:
+        type: "object"
+        properties:
+          queue_name:
+            type: "string"
+            format: "Servicely Queue name that was used"
+          record_id:
+            type: "string"
+            format: "Servicely Queue record id number"
+          task:
+            type: "object"
+            format: "Servicely playload that was sent"

@@ -1,0 +1,9 @@
+pack: servicely
+name: task_run.concurrency
+description: Limits the concurrent executions for servicely.task_run
+enabled: true
+resource_ref: servicely.task_run
+policy_type: action.concurrency
+parameters:
+  action: cancel
+  threshold: 20
