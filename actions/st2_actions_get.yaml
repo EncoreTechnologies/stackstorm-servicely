@@ -1,0 +1,24 @@
+---
+description: "Send StackStorm actions to Servicely"
+enabled: true
+runner_type: "python-script"
+entry_point: st2_actions_get.py
+name: st2_actions_get
+pack: servicely
+parameters:
+  server:
+    type: string
+    description: The servicely server
+    default: "{{ st2kv.system.servicely.server }}"
+  token:
+    type: string
+    default: "{{ st2kv.system.servicely.token | decrypt_kv }}"
+    secret: true
+  st2_token:
+    type: string
+    default: "{{ st2kv.system.servicely.st2_token | decrypt_kv }}"
+    secret: true
+  queue_name:
+    type: "string"
+    description: "Servicely Queue name that was used"
+    default: "{{ st2kv.system.servicely.queue_name }}"
