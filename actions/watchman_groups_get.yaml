@@ -1,0 +1,47 @@
+---
+description: "Retrieves group data from Watchman and posts to Servicely"
+enabled: true
+runner_type: "python-script"
+entry_point: watchman_groups_get.py
+name: watchman_groups_get
+pack: servicely
+parameters:
+  queue_name:
+    type: string
+    description: "Servicely queue name"
+    required: true
+  subject:
+    type: string
+    description: "Servicely queue subject"
+    required: true
+  execution_id:
+    type: string
+    description: "StackStorm execution ID"
+    required: false
+  watchman_api_key:
+    type: string
+    description: "Watchman API key for authentication"
+    default: "{{ st2kv.system.servicely.watchman.api_key | decrypt_kv }}"
+    secret: true
+    required: true
+  watchman_server:
+    type: string
+    description: "Watchman server hostname"
+    default: "{{ st2kv.system.servicely.watchman.server }}"
+    required: true
+  watchman_page_size:
+    type: integer
+    description: "Number of results per page"
+    default: "{{ st2kv.system.servicely.watchman.page_size_int }}"
+    required: true
+  servicely_server:
+    type: string
+    description: "Servicely server hostname"
+    default: "{{ st2kv.system.servicely.server }}"
+    required: true
+  servicely_token:
+    type: string
+    description: "Servicely authentication token"
+    default: "{{ st2kv.system.servicely.token | decrypt_kv }}"
+    secret: true
+    required: true

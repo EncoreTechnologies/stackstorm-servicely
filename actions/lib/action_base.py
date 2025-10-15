@@ -166,17 +166,211 @@ class BaseAction(Action):
             return default_result
         
         try:
-            parsed = json.loads(record_payload)  # Use original for JSON parsing
-            # Handle keys case-insensitively
-            parsed_lower = {k.lower(): v for k, v in parsed.items()}
-            default_result = {
-                'parameters': parsed_lower.get('parameters', {}),
-                'is_async': parsed_lower.get('is_async', None)
-            }
+            parsed = json.loads(record_payload)
+            if isinstance(parsed, list):
+                return default_result
+            if isinstance(parsed, dict):
+                parsed_lower = {k.lower(): v for k, v in parsed.items()}
+                default_result = {
+                    'parameters': parsed_lower.get('parameters', {}),
+                    'is_async': parsed_lower.get('is_async', None)
+                }
         except (json.JSONDecodeError, KeyError, TypeError):
             return default_result
         
         return default_result
+
+    def fetch_paginated_data(self, url, params, timeout=30):
+        all_results = []
+        current_page = 1
+
+        while True:
+            try:
+                params_with_page = params.copy()
+                params_with_page['page'] = current_page
+
+                response = requests.get(
+                    url,
+                    params=params_with_page,
+                    timeout=timeout
+                )
+                response.raise_for_status()
+
+                page_data = response.json()
+                if isinstance(page_data, list):
+                    all_results.extend(page_data)
+                else:
+                    all_results.append(page_data)
+
+                next_page = response.headers.get('x-next-page', '').strip()
+
+                if not next_page:
+                    break
+
+                current_page = int(next_page)
+
+            except requests.exceptions.RequestException as e:
+                self.logger.error(f"Failed to fetch data from {url}")
+                self.logger.error(f"Parameters: {params_with_page}")
+                self.logger.error(f"Error: {str(e)}")
+                raise
+
+        return all_results
+
+    def fetch_and_post_paginated_data(
+        self,
+        url,
+        params,
+        queue_name,
+        subject,
+        server,
+        token,
+        execution_id=None,
+        timeout=30
+    ):
+        total_items = 0
+        pages_posted = 0
+        current_page = 1
+
+        while True:
+            try:
+                params_with_page = params.copy()
+                params_with_page['page'] = current_page
+
+                response = requests.get(
+                    url,
+                    params=params_with_page,
+                    timeout=timeout
+                )
+                response.raise_for_status()
+
+                page_data = response.json()
+                if not page_data:
+                    break
+
+                if isinstance(page_data, list):
+                    item_count = len(page_data)
+                    total_items += item_count
+                else:
+                    item_count = 1
+                    total_items += 1
+
+                self.logger.info(
+                    f"Page {current_page}: {item_count} items"
+                )
+
+                self.post_to_servicely_queue(
+                    queue_name=queue_name,
+                    subject=subject,
+                    payload=page_data,
+                    server=server,
+                    token=token,
+                    execution_id=execution_id
+                )
+                pages_posted += 1
+
+                next_page = response.headers.get('x-next-page', '').strip()
+
+                if not next_page:
+                    break
+
+                current_page = int(next_page)
+                time.sleep(1)
+
+            except requests.exceptions.RequestException as e:
+                self.logger.error(f"Failed to fetch data from {url}")
+                self.logger.error(f"Parameters: {params_with_page}")
+                self.logger.error(f"Error: {str(e)}")
+                raise
+
+        return {
+            'total_items': total_items,
+            'pages_posted': pages_posted
+        }
+
+    def post_data_in_chunks(
+        self,
+        data,
+        queue_name,
+        subject,
+        server,
+        token,
+        execution_id=None,
+        chunk_size=100,
+        state="ready"
+    ):
+        chunks_posted = 0
+
+        for i in range(0, len(data), chunk_size):
+            chunk = data[i:i + chunk_size]
+
+            self.logger.info(
+                f"Posting chunk {chunks_posted + 1}: {len(chunk)} items"
+            )
+
+            self.post_to_servicely_queue(
+                queue_name=queue_name,
+                subject=subject,
+                payload=chunk,
+                server=server,
+                token=token,
+                execution_id=execution_id,
+                state=state
+            )
+            chunks_posted += 1
+
+            if i + chunk_size < len(data):
+                time.sleep(1)
+
+        return chunks_posted
+
+    def post_to_servicely_queue(
+        self,
+        queue_name,
+        subject,
+        payload,
+        server,
+        token,
+        execution_id=None,
+        state="ready"
+    ):
+        headers = {'Authorization': f'Bearer {token}'}
+        servicely_url = f"https://{server}/v1/AsyncQueue"
+
+        request_body = {
+            "Queue": queue_name,
+            "Subject": subject,
+            "QueueType": "input",
+            "State": state,
+            "Payload": json.dumps(payload)
+        }
+
+        if execution_id:
+            request_body["Source"] = execution_id
+
+        try:
+            response = requests.post(
+                servicely_url,
+                json=request_body,
+                headers=headers,
+                timeout=60
+            )
+            response.raise_for_status()
+            self.logger.info(
+                f"Successfully posted to queue {queue_name}"
+            )
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"Failed to post to Servicely queue")
+            self.logger.error(f"URL: {servicely_url}")
+            self.logger.error(f"Queue: {queue_name}, Subject: {subject}")
+            if isinstance(payload, list):
+                self.logger.error(f"Payload: list with {len(payload)} items")
+            else:
+                self.logger.error(f"Payload: {type(payload).__name__}")
+            self.logger.error(f"Error: {str(e)}")
+            raise
+
+        return True
 
     def run(self, **kwargs):
         raise RuntimeError("run() not implemented")
