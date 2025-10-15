@@ -21,7 +21,7 @@ import json
 class TaskRun(BaseAction):
     def __init__(self, config):
         super(TaskRun, self).__init__(config)
-        
+
     def run(self, server, token, st2_token, queue_name, record_id, task):
         """Main entry point for the StackStorm actions to execute the operation.
         :returns: Dictionary of networks
@@ -36,16 +36,39 @@ class TaskRun(BaseAction):
 
             self.update_servicely_state(server, token, queue_name, record_id, execution_id, task, 'processing')
 
+            execution_success = True
+            execution_result = None
+
             try:
-                # exec_params = {}
-                # if type(record_payload) is str and record_payload != '{parameters={}}':
-                #     exec_params = json.loads(record_payload)['parameters']
                 exec_params = self.parse_record_payload(record_payload)['parameters']
-                execution_result = self.execute_action(record_subject, exec_params, st2_token)
+                exec_params['queue_name'] = queue_name
+                exec_params['subject'] = record_subject
+                exec_params['execution_id'] = execution_id
+
+                if record_payload:
+                    try:
+                        payload_data = json.loads(record_payload)
+                        if isinstance(payload_data, list):
+                            exec_params['filter_criteria'] = payload_data
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+
+                execution_result = self.execute_action(
+                    record_subject,
+                    exec_params,
+                    st2_token
+                )
             except Exception as e:
-                self.logger.info(f"Failed to execute action for record {record_id}: {str(e)}")
-                raise
-            
+                execution_success = False
+                execution_result = {
+                    'success': False,
+                    'error': str(e),
+                    'action': record_subject
+                }
+                self.logger.error(
+                    f"Failed to execute action for record {record_id}: {str(e)}"
+                )
+
             st2_payload = {
                 "Queue": queue_name,
                 "QueueType": "input",
@@ -56,13 +79,22 @@ class TaskRun(BaseAction):
                 "Payload": json.dumps(execution_result)
             }
             self.send_servicely_results(record_id, server, token, st2_payload)
-            
-            self.update_servicely_state(server, token, queue_name, record_id, execution_id, task, 'processed')
+
+            final_state = 'processed' if execution_success else 'error'
+            self.update_servicely_state(
+                server,
+                token,
+                queue_name,
+                record_id,
+                execution_id,
+                task,
+                final_state
+            )
         except KeyError as e:
             self.logger.error(f"Missing required field in result {record_id}: {str(e)}")
             raise
         except Exception as e:
             self.logger.error(f"Unexpected error processing record {record_id}: {str(e)}")
             raise
-        
+
         return True
