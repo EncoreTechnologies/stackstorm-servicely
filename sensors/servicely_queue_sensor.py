@@ -115,13 +115,15 @@ class ServicelyQueueSensor(PollingSensor):
             return default_result
         
         try:
-            parsed = json.loads(record_payload)  # Use original for JSON parsing
-            # Handle keys case-insensitively
-            parsed_lower = {k.lower(): v for k, v in parsed.items()}
-            default_result = {
-                'parameters': parsed_lower.get('parameters', {}),
-                'is_async': parsed_lower.get('is_async', None)
-            }
+            parsed = json.loads(record_payload)
+            if isinstance(parsed, list):
+                return default_result
+            if isinstance(parsed, dict):
+                parsed_lower = {k.lower(): v for k, v in parsed.items()}
+                default_result = {
+                    'parameters': parsed_lower.get('parameters', {}),
+                    'is_async': parsed_lower.get('is_async', None)
+                }
         except (json.JSONDecodeError, KeyError, TypeError):
             return default_result
         
