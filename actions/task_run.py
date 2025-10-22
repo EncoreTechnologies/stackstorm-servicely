@@ -41,9 +41,11 @@ class TaskRun(BaseAction):
 
             try:
                 exec_params = self.parse_record_payload(record_payload)['parameters']
-                exec_params['queue_name'] = queue_name
-                exec_params['subject'] = record_subject
-                exec_params['execution_id'] = execution_id
+
+                if record_subject.startswith('servicely.watchman_'):
+                    exec_params['queue_name'] = queue_name
+                    exec_params['subject'] = record_subject
+                    exec_params['execution_id'] = execution_id
 
                 if record_payload:
                     try:
