@@ -12,7 +12,7 @@ parameters:
     default: "{{ st2kv.system.servicely.server }}"
   token:
     type: string
-    default: "{{ st2kv.system.servicely.token | decrypt_kv }}"
+    default: "{{ st2kv.system.servicely.encoredev.token | decrypt_kv }}"
     secret: true
   st2_token:
     type: string

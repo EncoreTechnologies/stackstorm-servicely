@@ -67,12 +67,15 @@ class ServicelyQueueSensor(PollingSensor):
             try:
                 record_id = result.get('id')
                 record_payload = result.get('Payload')
+                parsed_payload = self.parse_record_payload(record_payload)
+
                 trigger_playload = {
                     'queue_name': self.queue_name,
                     'record_id': record_id,
-                    'task': result
+                    'task': result,
+                    'servicely_parameters': parsed_payload.get('servicely_parameters', {})
                 }
-                is_async = self.parse_record_payload(record_payload)['is_async']
+                is_async = parsed_payload['is_async']
 
                 if is_async:
                     self._sensor_service.dispatch(trigger=self.trigger_ref_async, payload=trigger_playload)
@@ -90,30 +93,30 @@ class ServicelyQueueSensor(PollingSensor):
         return True
     
     def parse_record_payload(self, record_payload):
-        """Parse record_payload and extract parameters and is_async flag (case-insensitive)."""
-        default_result = {'parameters': {}, 'is_async': None}
-        
+        """Parse record_payload and extract parameters, is_async flag, and servicely_parameters (case-insensitive)."""
+        default_result = {'parameters': {}, 'is_async': None, 'servicely_parameters': {}}
+
         if not isinstance(record_payload, str):
             return default_result
-        
+
         # Convert to lowercase for comparison
         payload_lower = record_payload.lower()
-        
+
         # Handle special empty cases (lowercase)
         empty_patterns = [
             '{parameters={}}',
             '{parameters={}, is_async=true}',
             '{parameters={}, is_async=false}'
         ]
-        
+
         if payload_lower in empty_patterns:
             # Extract is_async from the pattern if present
             if 'is_async=true' in payload_lower:
-                return {'parameters': {}, 'is_async': True}
+                return {'parameters': {}, 'is_async': True, 'servicely_parameters': {}}
             elif 'is_async=false' in payload_lower:
-                return {'parameters': {}, 'is_async': False}
+                return {'parameters': {}, 'is_async': False, 'servicely_parameters': {}}
             return default_result
-        
+
         try:
             parsed = json.loads(record_payload)
             if isinstance(parsed, list):
@@ -122,11 +125,12 @@ class ServicelyQueueSensor(PollingSensor):
                 parsed_lower = {k.lower(): v for k, v in parsed.items()}
                 default_result = {
                     'parameters': parsed_lower.get('parameters', {}),
-                    'is_async': parsed_lower.get('is_async', None)
+                    'is_async': parsed_lower.get('is_async', None),
+                    'servicely_parameters': parsed_lower.get('servicely_parameters', {})
                 }
         except (json.JSONDecodeError, KeyError, TypeError):
             return default_result
-        
+
         return default_result
 
     def cleanup(self):
