@@ -25,43 +25,64 @@ class St2ActionsGet(BaseAction):
     def normalize_default(self, st2_client, action_value):
         return_param = {'defaulted': True}
         if 'secret' not in action_value or ('secret' in action_value and not action_value['secret']):
+            # Check if default is a string and contains template syntax {{ }}
+            default_value = action_value['default']
+
+            # If default is not a string or doesn't contain template syntax, use it as-is
+            if not isinstance(default_value, str) or '{{' not in default_value:
+                return_param['default'] = default_value
+                return return_param
+
             # Remove {{ and }} and strip whitespace
-            key_name = action_value['default'].strip().strip('{}').strip()
-            
+            key_name = default_value.strip().strip('{}').strip()
+
             if '|' in key_name:
                 key_name = key_name.split('|')[0].strip()
-            
+
             # Remove 'st2kv.system.' prefix
             if key_name.startswith('st2kv.system.'):
                 key_name = key_name[len('st2kv.system.'):]
 
             try:
                 key_value = st2_client.keys.get_by_name(name=key_name)
-                return_param['default'] = key_value.value
+                # Check if key_value is a list or has a value attribute
+                if isinstance(key_value, list):
+                    if len(key_value) > 0:
+                        return_param['default'] = key_value[0].value if hasattr(key_value[0], 'value') else key_value[0]
+                    else:
+                        return_param['default'] = None
+                elif hasattr(key_value, 'value'):
+                    return_param['default'] = key_value.value
+                else:
+                    return_param['default'] = key_value
             except Exception as e:
-                self.logger.error(f"Unexpected error getting key: {key_name}\ndefault: {action_value['default']}\nkey value: {key_value}\nerror: {str(e)}")
+                self.logger.error(f"Unexpected error getting key: {key_name}\ndefault: {action_value['default']}\nerror: {str(e)}")
                 return_param['default'] = None
         else:
             return_param['secret'] = True
-        
+
         return return_param
     
     def process_parameters(self, st2_client, parameters):
         """Recursively process parameters, handling nested structures."""
         all_params = []
-        
+
         for key, value in parameters.items():
+            # Skip parameters without a 'type' field
+            if 'type' not in value:
+                continue
+
             return_param = {
                 'name': key,
                 'type': value['type']
             }
-            
+
             if 'description' in value:
                 return_param['description'] = value['description']
-            
+
             if 'default' in value:
                 return_param.update(self.normalize_default(st2_client, value))
-            
+
             # Handle array type with object items that have parameters
             if (value['type'] == 'array' and 'items' in value):
                 if (value['items']['type'] == 'object' and 'parameters' in value['items']):
@@ -71,9 +92,9 @@ class St2ActionsGet(BaseAction):
                         'type': 'object',
                         'parameters': nested_params
                     }
-            
+
             all_params.append(return_param)
-        
+
         return all_params
 
     def structure_action(self, st2_client, action):
@@ -93,21 +114,49 @@ class St2ActionsGet(BaseAction):
         """Main entry point for the StackStorm actions to execute the operation.
         :returns: Dictionary of networks
         """
+        execution_id = os.environ.get('ST2_ACTION_EXECUTION_ID')
+        pack_separated_actions = {}
+
         try:
             st2_client = self.setup_st2_client(st2_token)
             all_actions = st2_client.actions.get_all()
-            pack_separated_actions = {}
+
+            # Build the pack-separated actions dictionary
             for action in all_actions:
                 action_dict = self.structure_action(st2_client, action)
                 if action.pack not in pack_separated_actions:
                     pack_separated_actions[action.pack] = []
 
                 pack_separated_actions[action.pack].append(action_dict)
-            
-            with open('/opt/encore/tmp/action_output.json', 'w') as f:
-                json.dump(pack_separated_actions, f, indent=2)
+
+            # Send each pack's actions to Servicely one at a time
+            total_packs = len(pack_separated_actions)
+            packs_posted = 0
+
+            for pack_name, actions in pack_separated_actions.items():
+                pack_payload = {
+                    'pack': pack_name,
+                    'actions': actions
+                }
+
+                self.logger.info(
+                    f"Posting pack {pack_name}: {len(actions)} actions (Pack {packs_posted + 1}/{total_packs})"
+                )
+
+                self.post_to_servicely_queue(
+                    queue_name=queue_name,
+                    subject="servicely.st2_actions",
+                    payload=pack_payload,
+                    server=server,
+                    token=token,
+                    execution_id=execution_id
+                )
+                packs_posted += 1
+
+            self.logger.info(f"Successfully posted {packs_posted} packs to Servicely")
+
         except Exception as e:
-            self.logger.error(f"Unexpected error processing action {action.ref}: {str(e)}")
+            self.logger.error(f"Unexpected error processing actions: {str(e)}")
             raise
-        
+
         return True
