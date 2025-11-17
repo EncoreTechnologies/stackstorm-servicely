@@ -28,9 +28,15 @@ class TaskFinish(BaseAction):
         :returns: Dictionary of networks
         """
         parent_execution_id = os.environ.get('ST2_ACTION_EXECUTION_ID')
+
+        # Store original server/token/queue (received as parameters) for state updates
+        original_server = server
+        original_token = token
+        original_queue_name = queue_name
+
         try:
             record_subject = task.get('Subject')
-            
+
             st2_client = self.setup_st2_client(st2_token)
 
             execution_result = st2_client.liveactions.get_by_id(execution_id)
@@ -45,15 +51,24 @@ class TaskFinish(BaseAction):
             servicely_executions_dict = {}
             if servicely_executions:
                 servicely_executions_dict = json.loads(servicely_executions.value)
-            
+
+            # Check if task has servicely_parameters override stored by task_start
+            servicely_parameters = task.get('servicely_parameters', {})
+
+            # Use override parameters if they exist, otherwise use original
+            result_server = servicely_parameters.get('server', original_server)
+            result_token = servicely_parameters.get('token', original_token)
+            result_queue_name = servicely_parameters.get('queue_name', original_queue_name)
+
             if execution_id in servicely_executions_dict:
                 del servicely_executions_dict[execution_id]
-            
+
             st2_key_pair = KeyValuePair(name='servicely.executions', value=json.dumps(servicely_executions_dict))
             st2_client.keys.update(st2_key_pair)
 
+            # Send results to the override server/queue if specified, otherwise to original
             st2_payload = {
-                "Queue": queue_name,
+                "Queue": result_queue_name,
                 "QueueType": "input",
                 "Subject": record_subject,
                 "State": "ready",
@@ -61,8 +76,19 @@ class TaskFinish(BaseAction):
                 'Source': parent_execution_id,
                 "Payload": json.dumps(execution_result.to_dict())
             }
-            self.send_servicely_results(record_id, server, token, st2_payload)
-            self.update_servicely_state(server, token, queue_name, record_id, execution_id, task, 'processed')
+
+            # Try to send results to the result server (may be overridden)
+            try:
+                self.send_servicely_results(record_id, result_server, result_token, st2_payload)
+            except Exception as e:
+                # If sending to override server fails, update original server's state to error
+                error_msg = f"Failed to send results to {result_server}: {str(e)}"
+                self.logger.error(error_msg)
+                self.update_servicely_state(original_server, original_token, original_queue_name, record_id, execution_id, task, 'error')
+                return {'success': False, 'error': error_msg}
+
+            # Always update the state on the ORIGINAL server
+            self.update_servicely_state(original_server, original_token, original_queue_name, record_id, execution_id, task, 'processed')
         except KeyError as e:
             self.logger.error(f"Missing required field in result {record_id}: {str(e)}")
             raise

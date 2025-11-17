@@ -49,6 +49,34 @@ class BaseAction(Action):
 
         return st2_client
 
+    def lookup_servicely_token(self, st2_client, server):
+        """
+        Lookup the encrypted token for a given Servicely server from the keystore.
+
+        :param st2_client: ST2 client instance
+        :param server: Server hostname in format "env.servicely.ai"
+        :returns: Token string if found, None otherwise
+        """
+        return_value = None
+        try:
+            # Parse environment from server (e.g., "encoretest.servicely.ai" -> "encoretest")
+            env_name = server.split('.')[0]
+            keystore_key = f"servicely.{env_name}.token"
+
+            # Retrieve encrypted token from keystore using ST2 client
+            key_pair = st2_client.keys.get_by_name(name=keystore_key, decrypt=True)
+
+            if key_pair and key_pair.value:
+                self.logger.info(f"Successfully retrieved token for server {server} from keystore key {keystore_key}")
+                return_value = key_pair.value
+            else:
+                self.logger.error(f"Token not found in keystore for key: {keystore_key}")
+
+        except Exception as e:
+            self.logger.error(f"Failed to lookup token for server {server}: {str(e)}")
+        
+        return return_value
+
     def send_servicely_results(self, record_id, server, token, payload):
         headers = {'Authorization': f'Bearer {token}'}
         servicely_Async_url = "https://{0}/v1/AsyncQueue".format(server)
@@ -142,7 +170,7 @@ class BaseAction(Action):
 
     def parse_record_payload(self, record_payload):
         """Parse record_payload and extract parameters and is_async flag (case-insensitive)."""
-        default_result = {'parameters': {}, 'is_async': None}
+        default_result = {'parameters': {}, 'is_async': None, 'servicely_parameters': {}}
         
         if not isinstance(record_payload, str):
             return default_result
@@ -173,7 +201,8 @@ class BaseAction(Action):
                 parsed_lower = {k.lower(): v for k, v in parsed.items()}
                 default_result = {
                     'parameters': parsed_lower.get('parameters', {}),
-                    'is_async': parsed_lower.get('is_async', None)
+                    'is_async': parsed_lower.get('is_async', None),
+                    'servicely_parameters': parsed_lower.get('servicely_parameters', {})
                 }
         except (json.JSONDecodeError, KeyError, TypeError):
             return default_result

@@ -1,5 +1,10 @@
 # Change Log
 
+## v1.0.4
+
+Added ability to override the Servicely instance that results are being delivered to. Did specific token look ups for added security.
+Updated actions get method to send data directly to Servicely.
+
 ## v1.0.3
 
 Fixes group of exec params to be Watchman-specific to not interfere with other actions.

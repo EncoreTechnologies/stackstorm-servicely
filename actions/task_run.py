@@ -30,22 +30,56 @@ class TaskRun(BaseAction):
         headers = {'Authorization': f'Bearer {token}'}
         servicely_Async_url = "https://{0}/v1/AsyncQueue".format(server)
 
+        # Store original server/token/queue for state updates
+        original_server = server
+        original_token = token
+        original_queue_name = queue_name
+
         try:
             record_subject = task.get('Subject')
             record_payload = task.get('Payload')
 
-            self.update_servicely_state(server, token, queue_name, record_id, execution_id, task, 'processing')
+            self.update_servicely_state(original_server, original_token, original_queue_name, record_id, execution_id, task, 'processing')
 
             execution_success = True
             execution_result = None
 
-            try:
-                exec_params = self.parse_record_payload(record_payload)['parameters']
+            # Parse servicely_parameters for potential overrides
+            parsed_payload = self.parse_record_payload(record_payload)
+            exec_params = parsed_payload['parameters']
+            servicely_parameters = parsed_payload.get('servicely_parameters', {})
 
+            # Handle servicely_parameters overrides for sending results
+            result_server = original_server
+            result_token = original_token
+            result_queue_name = original_queue_name
+
+            if servicely_parameters:
+                # Check for server override
+                if 'server' in servicely_parameters:
+                    result_server = servicely_parameters['server']
+                    # Lookup token for the overridden server
+                    st2_client = self.setup_st2_client(st2_token)
+                    result_token = self.lookup_servicely_token(st2_client, result_server)
+
+                    if not result_token:
+                        error_msg = f"Token not found in keystore for server: {result_server}"
+                        self.logger.error(error_msg)
+                        self.update_servicely_state(original_server, original_token, original_queue_name, record_id, execution_id, task, 'error')
+                        return {'success': False, 'error': error_msg}
+
+                # Check for queue_name override
+                if 'queue_name' in servicely_parameters:
+                    result_queue_name = servicely_parameters['queue_name']
+
+            try:
+                # Handle watchman actions - pass servicely parameters to them
                 if record_subject.startswith('servicely.watchman_'):
-                    exec_params['queue_name'] = queue_name
+                    exec_params['queue_name'] = result_queue_name
                     exec_params['subject'] = record_subject
                     exec_params['execution_id'] = execution_id
+                    exec_params['servicely_server'] = result_server
+                    exec_params['servicely_token'] = result_token
 
                 if record_payload:
                     try:
@@ -71,8 +105,9 @@ class TaskRun(BaseAction):
                     f"Failed to execute action for record {record_id}: {str(e)}"
                 )
 
+            # Send results to the override server/queue if specified, otherwise to original
             st2_payload = {
-                "Queue": queue_name,
+                "Queue": result_queue_name,
                 "QueueType": "input",
                 "Subject": record_subject,
                 "State": "ready",
@@ -80,13 +115,23 @@ class TaskRun(BaseAction):
                 'Source': execution_id,
                 "Payload": json.dumps(execution_result)
             }
-            self.send_servicely_results(record_id, server, token, st2_payload)
 
+            # Try to send results to the result server (may be overridden)
+            try:
+                self.send_servicely_results(record_id, result_server, result_token, st2_payload)
+            except Exception as e:
+                # If sending to override server fails, update original server's state to error
+                error_msg = f"Failed to send results to {result_server}: {str(e)}"
+                self.logger.error(error_msg)
+                self.update_servicely_state(original_server, original_token, original_queue_name, record_id, execution_id, task, 'error')
+                return {'success': False, 'error': error_msg}
+
+            # Always update the state on the ORIGINAL server
             final_state = 'processed' if execution_success else 'error'
             self.update_servicely_state(
-                server,
-                token,
-                queue_name,
+                original_server,
+                original_token,
+                original_queue_name,
                 record_id,
                 execution_id,
                 task,
