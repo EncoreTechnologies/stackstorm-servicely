@@ -145,7 +145,7 @@ class St2ActionsGet(BaseAction):
 
                 self.post_to_servicely_queue(
                     queue_name=queue_name,
-                    subject="servicely.st2_actions",
+                    subject="servicely.st2_actions_get",
                     payload=pack_payload,
                     server=server,
                     token=token,
