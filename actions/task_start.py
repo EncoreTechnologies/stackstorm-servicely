@@ -82,7 +82,48 @@ class TaskStart(BaseAction):
                 execution_result = self.execute_action(record_subject, exec_params, st2_token, is_async=True)
             except Exception as e:
                 self.logger.info(f"Failed to execute action for record {record_id}: {str(e)}")
-                raise
+
+                # Send error back to Servicely
+                error_payload = {
+                    'success': False,
+                    'error': str(e),
+                    'action': record_subject
+                }
+                st2_payload = {
+                    "Queue": result_queue_name,
+                    "QueueType": "input",
+                    "Subject": record_subject,
+                    "State": "ready",
+                    "id": record_id,
+                    'Source': execution_id,
+                    "Payload": json.dumps(error_payload)
+                }
+                self.send_servicely_results(record_id, result_server, result_token, st2_payload)
+                self.update_servicely_state(original_server, original_token, original_queue_name, record_id, execution_id, task, 'error')
+                return {'success': False, 'error': str(e)}
+
+            # Handle case where execute_action returns False (action creation failed)
+            if execution_result is False:
+                error_msg = f"Failed to create execution for action {record_subject}"
+                self.logger.info(error_msg)
+
+                error_payload = {
+                    'success': False,
+                    'error': error_msg,
+                    'action': record_subject
+                }
+                st2_payload = {
+                    "Queue": result_queue_name,
+                    "QueueType": "input",
+                    "Subject": record_subject,
+                    "State": "ready",
+                    "id": record_id,
+                    'Source': execution_id,
+                    "Payload": json.dumps(error_payload)
+                }
+                self.send_servicely_results(record_id, result_server, result_token, st2_payload)
+                self.update_servicely_state(original_server, original_token, original_queue_name, record_id, execution_id, task, 'error')
+                return {'success': False, 'error': error_msg}
 
             st2_client = self.setup_st2_client(st2_token)
 

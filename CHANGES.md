@@ -1,5 +1,9 @@
 # Change Log
 
+## v1.0.5
+
+Added error handling that gets sent back to Servicely for async tasks.
+
 ## v1.0.4
 
 Added ability to override the Servicely instance that results are being delivered to. Did specific token look ups for added security.

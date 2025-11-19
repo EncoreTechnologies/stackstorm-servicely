@@ -87,8 +87,15 @@ class TaskFinish(BaseAction):
                 self.update_servicely_state(original_server, original_token, original_queue_name, record_id, execution_id, task, 'error')
                 return {'success': False, 'error': error_msg}
 
+            # Determine final state based on execution result
+            failed_statuses = ['failed', 'timeout', 'abandoned', 'canceled']
+            if execution_result.status in failed_statuses:
+                final_state = 'error'
+            else:
+                final_state = 'processed'
+
             # Always update the state on the ORIGINAL server
-            self.update_servicely_state(original_server, original_token, original_queue_name, record_id, execution_id, task, 'processed')
+            self.update_servicely_state(original_server, original_token, original_queue_name, record_id, execution_id, task, final_state)
         except KeyError as e:
             self.logger.error(f"Missing required field in result {record_id}: {str(e)}")
             raise
