@@ -42,6 +42,6 @@ parameters:
   servicely_token:
     type: string
     description: "Servicely authentication token"
-    default: "{{ st2kv.system.servicely.encoredev.token | decrypt_kv }}"
+    default: "{{ st2kv.system.servicely.token | decrypt_kv }}"
     secret: true
     required: true
