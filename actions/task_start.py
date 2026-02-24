@@ -22,14 +22,14 @@ import os
 class TaskStart(BaseAction):
     def __init__(self, config):
         super(TaskStart, self).__init__(config)
-        
-    def run(self, server, token, st2_token, queue_name, record_id, task):
+
+    def run(self, server, endpoint, token, st2_token, queue_name, record_id, task):
         """Main entry point for the StackStorm actions to execute the operation.
         :returns: Dictionary of networks
         """
         execution_id = os.environ.get('ST2_ACTION_EXECUTION_ID')
         headers = {'Authorization': f'Bearer {token}'}
-        servicely_Async_url = "https://{0}/v1/AsyncQueue".format(server)
+        servicely_Async_url = "https://{0}{1}".format(server, endpoint)
 
         # Store original server/token/queue for state updates
         original_server = server
@@ -40,7 +40,7 @@ class TaskStart(BaseAction):
             record_subject = task.get('Subject')
             record_payload = task.get('Payload')
 
-            self.update_servicely_state(original_server, original_token, original_queue_name, record_id, execution_id, task, 'processing')
+            self.update_servicely_state(original_server, endpoint, original_token, original_queue_name, record_id, execution_id, task, 'processing')
 
             # Parse servicely_parameters for potential overrides
             parsed_payload = self.parse_record_payload(record_payload)
@@ -63,7 +63,7 @@ class TaskStart(BaseAction):
                     if not result_token:
                         error_msg = f"Token not found in keystore for server: {result_server}"
                         self.logger.error(error_msg)
-                        self.update_servicely_state(original_server, original_token, original_queue_name, record_id, execution_id, task, 'error')
+                        self.update_servicely_state(original_server, endpoint, original_token, original_queue_name, record_id, execution_id, task, 'error')
                         return {'success': False, 'error': error_msg}
 
                 # Check for queue_name override
@@ -98,8 +98,8 @@ class TaskStart(BaseAction):
                     'Source': execution_id,
                     "Payload": json.dumps(error_payload)
                 }
-                self.send_servicely_results(record_id, result_server, result_token, st2_payload)
-                self.update_servicely_state(original_server, original_token, original_queue_name, record_id, execution_id, task, 'error')
+                self.send_servicely_results(record_id, result_server, endpoint, result_token, st2_payload)
+                self.update_servicely_state(original_server, endpoint, original_token, original_queue_name, record_id, execution_id, task, 'error')
                 return {'success': False, 'error': str(e)}
 
             # Handle case where execute_action returns False (action creation failed)
@@ -121,8 +121,8 @@ class TaskStart(BaseAction):
                     'Source': execution_id,
                     "Payload": json.dumps(error_payload)
                 }
-                self.send_servicely_results(record_id, result_server, result_token, st2_payload)
-                self.update_servicely_state(original_server, original_token, original_queue_name, record_id, execution_id, task, 'error')
+                self.send_servicely_results(record_id, result_server, endpoint, result_token, st2_payload)
+                self.update_servicely_state(original_server, endpoint, original_token, original_queue_name, record_id, execution_id, task, 'error')
                 return {'success': False, 'error': error_msg}
 
             st2_client = self.setup_st2_client(st2_token)
@@ -153,5 +153,5 @@ class TaskStart(BaseAction):
         except Exception as e:
             self.logger.error(f"Unexpected error processing record {record_id}: {str(e)}")
             raise
-        
+
         return True

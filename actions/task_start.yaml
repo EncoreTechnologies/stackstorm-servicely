@@ -10,6 +10,10 @@ parameters:
     type: string
     description: The servicely server
     default: "{{ st2kv.system.servicely.server }}"
+  endpoint:
+    type: string
+    description: "Endpoint for the Servicely Queue"
+    default: "{{ st2kv.system.servicely.endpoint }}"
   token:
     type: string
     default: "{{ st2kv.system.servicely.token | decrypt_kv }}"

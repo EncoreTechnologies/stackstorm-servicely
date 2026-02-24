@@ -2,6 +2,6 @@
 ref: servicely
 name: servicely
 description: StackStorm integration pack for automating Servicely AI
-version: 1.0.5
+version: 1.0.6
 author: Encore Technologies
 email: code@encore.tech

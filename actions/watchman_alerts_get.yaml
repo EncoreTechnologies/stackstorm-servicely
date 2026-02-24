@@ -44,6 +44,10 @@ parameters:
     description: "Servicely server hostname"
     default: "{{ st2kv.system.servicely.server }}"
     required: true
+  servicely_endpoint:
+    type: string
+    description: "Endpoint for the Servicely Queue"
+    default: "{{ st2kv.system.servicely.endpoint }}"
   servicely_token:
     type: string
     description: "Servicely authentication token"

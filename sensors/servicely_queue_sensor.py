@@ -32,16 +32,17 @@ class ServicelyQueueSensor(PollingSensor):
 
     def setup(self):
         self.server = self._config['servicely']['server']
+        self.endpoint = self._config['servicely']['endpoint']
         self.token = self._config['servicely']['token']
         self.queue_name = self._config['servicely']['queue_name']
-        
-        self.servicely_queue_url = "https://{0}/v1/AsyncQueue?Queue={1}&QueueType=output&State=ready&fields=Subject,Payload,id,Queue".format(self.server, self.queue_name)
+
+        self.servicely_queue_url = "https://{0}{1}?Queue={2}&QueueType=output&State=ready&fields=Subject,Payload,id,Queue".format(self.server, self.endpoint, self.queue_name)
         self.headers = {'Authorization': f'Bearer {self.token}'}
 
     def poll(self):
         # Fetch queue results with specific error handling
         self._logger.info(f"Polling servicely queue: {self.servicely_queue_url}")
-        
+
         try:
             response = requests.get(self.servicely_queue_url, headers=self.headers, timeout=30)
             response.raise_for_status()
@@ -53,15 +54,15 @@ class ServicelyQueueSensor(PollingSensor):
                 raise  # Re-raise the exception for other HTTP errors
         except requests.exceptions.RequestException:
             raise  # Re-raise for other request-related exceptions (timeout, connection errors, etc.)
-        
+
         queue_results = response.json()
-        
+
         if not queue_results:
             self._logger.info("No results found in queue")
             return True
-            
+
         self._logger.info(f"Found {len(queue_results['data'])} results in queue")
-            
+
         # Process each result with specific error handling for each REST call
         for result in queue_results['data']:
             try:
@@ -89,9 +90,9 @@ class ServicelyQueueSensor(PollingSensor):
             except Exception as e:
                 self._logger.error(f"Unexpected error processing record {record_id}: {str(e)}")
                 continue
-        
+
         return True
-    
+
     def parse_record_payload(self, record_payload):
         """Parse record_payload and extract parameters, is_async flag, and servicely_parameters (case-insensitive)."""
         default_result = {'parameters': {}, 'is_async': None, 'servicely_parameters': {}}

@@ -1,5 +1,9 @@
 # Change Log
 
+## v1.0.6
+
+Updates pack config to use dynamic queue endpoint and updates all action files accordingly.
+
 ## v1.0.5
 
 Added error handling that gets sent back to Servicely for async tasks.

@@ -40,7 +40,7 @@ class BaseAction(Action):
             st2client.commands.action.LIVEACTION_STATUS_RESUMING,
             st2client.commands.action.LIVEACTION_STATUS_RUNNING
         ]
-    
+
     def setup_st2_client(self, st2_token):
         st2_fqdn = socket.getfqdn()
         st2_url = "https://{}/".format(st2_fqdn)
@@ -74,17 +74,17 @@ class BaseAction(Action):
 
         except Exception as e:
             self.logger.error(f"Failed to lookup token for server {server}: {str(e)}")
-        
+
         return return_value
 
-    def send_servicely_results(self, record_id, server, token, payload):
+    def send_servicely_results(self, record_id, server, endpoint, token, payload):
         headers = {'Authorization': f'Bearer {token}'}
-        servicely_Async_url = "https://{0}/v1/AsyncQueue".format(server)
+        servicely_Async_url = "https://{0}{1}".format(server, endpoint)
 
         try:
             st2_final_response = requests.post(
-                servicely_Async_url, 
-                json=payload, 
+                servicely_Async_url,
+                json=payload,
                 headers=headers,
                 timeout=30
             )
@@ -99,16 +99,16 @@ class BaseAction(Action):
             self.logger.error(f"Failed to post results for record {record_id}: {str(e)}")
             # raise
             pass
-        
+
         return True
-    
-    def update_servicely_state(self, server, token, queue_name, record_id, execution_id, task, state='processing'):
+
+    def update_servicely_state(self, server, endpoint, token, queue_name, record_id, execution_id, task, state='processing'):
         headers = {'Authorization': f'Bearer {token}'}
-        servicely_Async_url = "https://{0}/v1/AsyncQueue".format(server)
+        servicely_Async_url = "https://{0}{1}".format(server, endpoint)
 
         record_subject = task.get('Subject')
         record_payload = task.get('Payload')
-        
+
         async_id_url = servicely_Async_url + "/{}".format(record_id)
         update_payload = {
             'Queue': queue_name,
@@ -116,11 +116,11 @@ class BaseAction(Action):
             'Source': execution_id,
             'State': state
         }
-        
+
         try:
             update_response = requests.patch(
-                async_id_url, 
-                json=update_payload, 
+                async_id_url,
+                json=update_payload,
                 headers=headers,
                 timeout=30
             )
@@ -135,9 +135,9 @@ class BaseAction(Action):
             self.logger.error(f"Failed to update record {record_id} to {state} state: {str(e)}")
             # raise
             pass
-        
+
         return True
-    
+
     def execute_action(self, exec_name, exec_params, st2_token, is_async=False, wait_time_sec=1):
         st2_client = self.setup_st2_client(st2_token)
 
@@ -163,7 +163,7 @@ class BaseAction(Action):
                 self.logger.info('Action {} is still running. Waiting to finish.'.format(execution.action['name']))
                 time.sleep(wait_time_sec)
                 execution = st2_client.liveactions.get_by_id(execution.id)
-            
+
             return_value = execution.to_dict()
 
         return return_value
@@ -171,20 +171,20 @@ class BaseAction(Action):
     def parse_record_payload(self, record_payload):
         """Parse record_payload and extract parameters and is_async flag (case-insensitive)."""
         default_result = {'parameters': {}, 'is_async': None, 'servicely_parameters': {}}
-        
+
         if not isinstance(record_payload, str):
             return default_result
-        
+
         # Convert to lowercase for comparison
         payload_lower = record_payload.lower()
-        
+
         # Handle special empty cases (lowercase)
         empty_patterns = [
             '{parameters={}}',
             '{parameters={}, is_async=true}',
             '{parameters={}, is_async=false}'
         ]
-        
+
         if payload_lower in empty_patterns:
             # Extract is_async from the pattern if present
             if 'is_async=true' in payload_lower:
@@ -192,7 +192,7 @@ class BaseAction(Action):
             elif 'is_async=false' in payload_lower:
                 return {'parameters': {}, 'is_async': False}
             return default_result
-        
+
         try:
             parsed = json.loads(record_payload)
             if isinstance(parsed, list):
@@ -206,7 +206,7 @@ class BaseAction(Action):
                 }
         except (json.JSONDecodeError, KeyError, TypeError):
             return default_result
-        
+
         return default_result
 
     def fetch_paginated_data(self, url, params, timeout=30):
@@ -253,6 +253,7 @@ class BaseAction(Action):
         queue_name,
         subject,
         server,
+        endpoint,
         token,
         execution_id=None,
         timeout=30
@@ -293,6 +294,7 @@ class BaseAction(Action):
                     subject=subject,
                     payload=page_data,
                     server=server,
+                    endpoint=endpoint,
                     token=token,
                     execution_id=execution_id
                 )
@@ -323,6 +325,7 @@ class BaseAction(Action):
         queue_name,
         subject,
         server,
+        endpoint,
         token,
         execution_id=None,
         chunk_size=100,
@@ -342,6 +345,7 @@ class BaseAction(Action):
                 subject=subject,
                 payload=chunk,
                 server=server,
+                endpoint=endpoint,
                 token=token,
                 execution_id=execution_id,
                 state=state
@@ -359,12 +363,13 @@ class BaseAction(Action):
         subject,
         payload,
         server,
+        endpoint,
         token,
         execution_id=None,
         state="ready"
     ):
         headers = {'Authorization': f'Bearer {token}'}
-        servicely_url = f"https://{server}/v1/AsyncQueue"
+        servicely_url = f"https://{server}{endpoint}"
 
         request_body = {
             "Queue": queue_name,

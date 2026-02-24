@@ -27,6 +27,7 @@ class WatchmanComputersGet(BaseAction):
         watchman_server,
         watchman_page_size,
         servicely_server,
+        servicely_endpoint,
         servicely_token,
         execution_id=None
     ):
@@ -47,6 +48,7 @@ class WatchmanComputersGet(BaseAction):
                 queue_name=queue_name,
                 subject=subject,
                 server=servicely_server,
+                endpoint=servicely_endpoint,
                 token=servicely_token,
                 execution_id=execution_id
             )
@@ -77,6 +79,7 @@ class WatchmanComputersGet(BaseAction):
                     subject=subject,
                     payload=error_payload,
                     server=servicely_server,
+                    endpoint=servicely_endpoint,
                     token=servicely_token,
                     execution_id=execution_id,
                     state="error"
