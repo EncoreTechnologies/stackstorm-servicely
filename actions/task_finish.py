@@ -22,8 +22,8 @@ from st2client.models import KeyValuePair
 class TaskFinish(BaseAction):
     def __init__(self, config):
         super(TaskFinish, self).__init__(config)
-        
-    def run(self, server, token, st2_token, queue_name, record_id, execution_id, task):
+
+    def run(self, server, endpoint, token, st2_token, queue_name, record_id, execution_id, task):
         """Main entry point for the StackStorm actions to execute the operation.
         :returns: Dictionary of networks
         """
@@ -79,12 +79,12 @@ class TaskFinish(BaseAction):
 
             # Try to send results to the result server (may be overridden)
             try:
-                self.send_servicely_results(record_id, result_server, result_token, st2_payload)
+                self.send_servicely_results(record_id, result_server, endpoint, result_token, st2_payload)
             except Exception as e:
                 # If sending to override server fails, update original server's state to error
                 error_msg = f"Failed to send results to {result_server}: {str(e)}"
                 self.logger.error(error_msg)
-                self.update_servicely_state(original_server, original_token, original_queue_name, record_id, execution_id, task, 'error')
+                self.update_servicely_state(original_server, endpoint, original_token, original_queue_name, record_id, execution_id, task, 'error')
                 return {'success': False, 'error': error_msg}
 
             # Determine final state based on execution result
@@ -95,12 +95,12 @@ class TaskFinish(BaseAction):
                 final_state = 'processed'
 
             # Always update the state on the ORIGINAL server
-            self.update_servicely_state(original_server, original_token, original_queue_name, record_id, execution_id, task, final_state)
+            self.update_servicely_state(original_server, endpoint, original_token, original_queue_name, record_id, execution_id, task, final_state)
         except KeyError as e:
             self.logger.error(f"Missing required field in result {record_id}: {str(e)}")
             raise
         except Exception as e:
             self.logger.error(f"Unexpected error processing record {record_id}: {str(e)}")
             raise
-        
+
         return True

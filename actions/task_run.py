@@ -22,13 +22,13 @@ class TaskRun(BaseAction):
     def __init__(self, config):
         super(TaskRun, self).__init__(config)
 
-    def run(self, server, token, st2_token, queue_name, record_id, task):
+    def run(self, server, endpoint, token, st2_token, queue_name, record_id, task):
         """Main entry point for the StackStorm actions to execute the operation.
         :returns: Dictionary of networks
         """
         execution_id = os.environ.get('ST2_ACTION_EXECUTION_ID')
         headers = {'Authorization': f'Bearer {token}'}
-        servicely_Async_url = "https://{0}/v1/AsyncQueue".format(server)
+        servicely_Async_url = "https://{0}{1}".format(server, endpoint)
 
         # Store original server/token/queue for state updates
         original_server = server
@@ -39,7 +39,7 @@ class TaskRun(BaseAction):
             record_subject = task.get('Subject')
             record_payload = task.get('Payload')
 
-            self.update_servicely_state(original_server, original_token, original_queue_name, record_id, execution_id, task, 'processing')
+            self.update_servicely_state(original_server, endpoint, original_token, original_queue_name, record_id, execution_id, task, 'processing')
 
             execution_success = True
             execution_result = None
@@ -65,7 +65,7 @@ class TaskRun(BaseAction):
                     if not result_token:
                         error_msg = f"Token not found in keystore for server: {result_server}"
                         self.logger.error(error_msg)
-                        self.update_servicely_state(original_server, original_token, original_queue_name, record_id, execution_id, task, 'error')
+                        self.update_servicely_state(original_server, endpoint, original_token, original_queue_name, record_id, execution_id, task, 'error')
                         return {'success': False, 'error': error_msg}
 
                 # Check for queue_name override
@@ -118,18 +118,19 @@ class TaskRun(BaseAction):
 
             # Try to send results to the result server (may be overridden)
             try:
-                self.send_servicely_results(record_id, result_server, result_token, st2_payload)
+                self.send_servicely_results(record_id, result_server, endpoint, result_token, st2_payload)
             except Exception as e:
                 # If sending to override server fails, update original server's state to error
                 error_msg = f"Failed to send results to {result_server}: {str(e)}"
                 self.logger.error(error_msg)
-                self.update_servicely_state(original_server, original_token, original_queue_name, record_id, execution_id, task, 'error')
+                self.update_servicely_state(original_server, endpoint, original_token, original_queue_name, record_id, execution_id, task, 'error')
                 return {'success': False, 'error': error_msg}
 
             # Always update the state on the ORIGINAL server
             final_state = 'processed' if execution_success else 'error'
             self.update_servicely_state(
                 original_server,
+                endpoint,
                 original_token,
                 original_queue_name,
                 record_id,

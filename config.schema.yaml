@@ -8,6 +8,9 @@ servicely:
       type: string
       description: The servicely server
       default: demo.servicely.com
+    endpoint:
+      type: string
+      default: /servicely/endpoint
     token:
       type: string
       default: sericely1234

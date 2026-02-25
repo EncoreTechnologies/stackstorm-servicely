@@ -62,7 +62,7 @@ class St2ActionsGet(BaseAction):
             return_param['secret'] = True
 
         return return_param
-    
+
     def process_parameters(self, st2_client, parameters):
         """Recursively process parameters, handling nested structures."""
         all_params = []
@@ -104,13 +104,13 @@ class St2ActionsGet(BaseAction):
             'pack': action.pack,
             'description': action.description
         }
-        
+
         if action.parameters:
             return_action_dict['parameters'] = self.process_parameters(st2_client, action.parameters)
-        
+
         return return_action_dict
-        
-    def run(self, server, token, st2_token, queue_name):
+
+    def run(self, server, endpoint, token, st2_token, queue_name):
         """Main entry point for the StackStorm actions to execute the operation.
         :returns: Dictionary of networks
         """
@@ -148,6 +148,7 @@ class St2ActionsGet(BaseAction):
                     subject="servicely.st2_actions_get",
                     payload=pack_payload,
                     server=server,
+                    endpoint=endpoint,
                     token=token,
                     execution_id=execution_id
                 )
