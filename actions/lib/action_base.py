@@ -49,30 +49,6 @@ class BaseAction(Action):
 
         return st2_client
 
-    def lookup_servicely_token(self, st2_client):
-        """
-        Lookup the encrypted servicely token from the keystore.
-
-        :param st2_client: ST2 client instance
-        :returns: Token string if found, None otherwise
-        """
-        return_value = None
-        keystore_key = "servicely.token"
-        try:
-            # Retrieve encrypted token from keystore using ST2 client
-            key_pair = st2_client.keys.get_by_name(name=keystore_key, decrypt=True)
-
-            if key_pair and key_pair.value:
-                self.logger.info(f"Successfully retrieved token from keystore key {keystore_key}")
-                return_value = key_pair.value
-            else:
-                self.logger.error(f"Token not found in keystore for key: {keystore_key}")
-
-        except Exception as e:
-            self.logger.error(f"Failed to lookup servicely token: {str(e)}")
-
-        return return_value
-
     def send_servicely_results(self, record_id, server, endpoint, token, payload):
         headers = {'Authorization': f'Bearer {token}'}
         servicely_Async_url = "https://{0}{1}".format(server, endpoint)
