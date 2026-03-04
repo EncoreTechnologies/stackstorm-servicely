@@ -1,5 +1,9 @@
 # Change Log
 
+## v1.0.7
+
+Removes environment-specific servicely token key name and associated logic.
+
 ## v1.0.6
 
 Updates pack config to use dynamic queue endpoint and updates all action files accordingly.

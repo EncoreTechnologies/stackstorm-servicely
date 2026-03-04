@@ -53,19 +53,6 @@ class TaskStart(BaseAction):
             result_queue_name = original_queue_name
 
             if servicely_parameters:
-                # Check for server override
-                if 'server' in servicely_parameters:
-                    result_server = servicely_parameters['server']
-                    # Lookup token for the overridden server
-                    st2_client = self.setup_st2_client(st2_token)
-                    result_token = self.lookup_servicely_token(st2_client, result_server)
-
-                    if not result_token:
-                        error_msg = f"Token not found in keystore for server: {result_server}"
-                        self.logger.error(error_msg)
-                        self.update_servicely_state(original_server, endpoint, original_token, original_queue_name, record_id, execution_id, task, 'error')
-                        return {'success': False, 'error': error_msg}
-
                 # Check for queue_name override
                 if 'queue_name' in servicely_parameters:
                     result_queue_name = servicely_parameters['queue_name']
