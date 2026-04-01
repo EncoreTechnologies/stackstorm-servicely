@@ -74,7 +74,8 @@ class St2ActionsGet(BaseAction):
 
             return_param = {
                 'name': key,
-                'type': value['type']
+                'type': value['type'],
+                'required': value.get('required', False)
             }
 
             if 'description' in value:

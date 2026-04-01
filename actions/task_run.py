@@ -60,13 +60,21 @@ class TaskRun(BaseAction):
                     result_queue_name = servicely_parameters['queue_name']
 
             try:
-                # Handle watchman actions - pass servicely parameters to them
+                # Handle watchman actions - pass servicely connection parameters
                 if record_subject.startswith('servicely.watchman_'):
                     exec_params['queue_name'] = result_queue_name
                     exec_params['subject'] = record_subject
                     exec_params['execution_id'] = execution_id
                     exec_params['servicely_server'] = result_server
+                    exec_params['servicely_endpoint'] = endpoint
                     exec_params['servicely_token'] = result_token
+
+                # Handle st2_actions_get - pass servicely connection parameters
+                if record_subject == 'servicely.st2_actions_get':
+                    exec_params['server'] = result_server
+                    exec_params['endpoint'] = endpoint
+                    exec_params['token'] = result_token
+                    exec_params['queue_name'] = result_queue_name
 
                 if record_payload:
                     try:

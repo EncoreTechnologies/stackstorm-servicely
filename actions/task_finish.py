@@ -57,6 +57,7 @@ class TaskFinish(BaseAction):
 
             # Use override parameters if they exist, otherwise use original
             result_server = servicely_parameters.get('server', original_server)
+            result_endpoint = servicely_parameters.get('endpoint', endpoint)
             result_token = servicely_parameters.get('token', original_token)
             result_queue_name = servicely_parameters.get('queue_name', original_queue_name)
 
@@ -79,7 +80,7 @@ class TaskFinish(BaseAction):
 
             # Try to send results to the result server (may be overridden)
             try:
-                self.send_servicely_results(record_id, result_server, endpoint, result_token, st2_payload)
+                self.send_servicely_results(record_id, result_server, result_endpoint, result_token, st2_payload)
             except Exception as e:
                 # If sending to override server fails, update original server's state to error
                 error_msg = f"Failed to send results to {result_server}: {str(e)}"

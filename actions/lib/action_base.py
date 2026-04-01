@@ -31,6 +31,7 @@ class BaseAction(Action):
         :returns: a new BaseAction
         """
         super(BaseAction, self).__init__(config)
+        self.hostname = socket.getfqdn()
         self.PENDING_STATUSES = [
             st2client.commands.action.LIVEACTION_STATUS_REQUESTED,
             st2client.commands.action.LIVEACTION_STATUS_SCHEDULED,
@@ -52,6 +53,16 @@ class BaseAction(Action):
     def send_servicely_results(self, record_id, server, endpoint, token, payload):
         headers = {'Authorization': f'Bearer {token}'}
         servicely_Async_url = "https://{0}{1}".format(server, endpoint)
+
+        # Add ST2 server hostname and queue name inside the Payload sent to Servicely
+        try:
+            inner_payload = json.loads(payload.get('Payload', '{}'))
+            if isinstance(inner_payload, dict):
+                inner_payload['hostname'] = self.hostname
+                inner_payload['queue_name'] = payload.get('Queue', '')
+                payload['Payload'] = json.dumps(inner_payload)
+        except (json.JSONDecodeError, TypeError):
+            pass
 
         try:
             st2_final_response = requests.post(
@@ -117,15 +128,7 @@ class BaseAction(Action):
         execution_instance.action = exec_name
         execution_instance.parameters = exec_params
 
-        # Catch any errors when triggering executions from the sensor
-        execution = None
-        try:
-            execution = st2_client.liveactions.create(execution_instance)
-        except Exception as e:
-            self.logger.info(
-                "Error triggering an execution for {}:\n{}\nExiting sensor!".format(exec_name, e)
-            )
-            return False
+        execution = st2_client.liveactions.create(execution_instance)
 
         self.logger.info('Starting {}...'.format(execution.action['name']))
 
@@ -343,6 +346,18 @@ class BaseAction(Action):
         headers = {'Authorization': f'Bearer {token}'}
         servicely_url = f"https://{server}{endpoint}"
 
+        # Add ST2 server hostname and queue name to all payloads sent to Servicely
+        # If payload is a list, wrap it in a dict so we can include the fields
+        if isinstance(payload, list):
+            payload = {
+                'data': payload,
+                'hostname': self.hostname,
+                'queue_name': queue_name
+            }
+        elif isinstance(payload, dict):
+            payload['hostname'] = self.hostname
+            payload['queue_name'] = queue_name
+
         request_body = {
             "Queue": queue_name,
             "Subject": subject,
@@ -368,7 +383,7 @@ class BaseAction(Action):
         except requests.exceptions.RequestException as e:
             self.logger.error(f"Failed to post to Servicely queue")
             self.logger.error(f"URL: {servicely_url}")
-            self.logger.error(f"Queue: {queue_name}, Subject: {subject}")
+            self.logger.error(f"Request body: {json.dumps(request_body)}")
             if isinstance(payload, list):
                 self.logger.error(f"Payload: list with {len(payload)} items")
             else:
