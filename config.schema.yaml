@@ -4,21 +4,32 @@ servicely:
   required: true
   additionalProperties: false
   properties:
-    server:
-      type: string
-      description: The servicely server
-      default: demo.servicely.com
-    endpoint:
-      type: string
-      default: /servicely/endpoint
-    token:
-      type: string
-      default: sericely1234
-      secret: true
     st2_token:
       type: string
+      description: StackStorm API token for executing actions
       default: st21234
       secret: true
-    queue_name:
-      type: string
-      default: st2_queue
+    connections:
+      type: array
+      description: List of Servicely connections to poll for queue items
+      items:
+        type: object
+        additionalProperties: false
+        properties:
+          server:
+            type: string
+            description: The servicely server
+            default: demo.servicely.com
+          endpoint:
+            type: string
+            description: Endpoint for the Servicely Queue API
+            default: /servicely/endpoint
+          token:
+            type: string
+            description: Servicely API token
+            default: servicely1234
+            secret: true
+          queue_name:
+            type: string
+            description: Servicely Queue name to listen on
+            default: st2_queue

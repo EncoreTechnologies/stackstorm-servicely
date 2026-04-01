@@ -45,7 +45,6 @@ class ServicelyExecutionMonitor(PollingSensor):
 
     def setup(self):
         st2_token = self._config['servicely']['st2_token']
-        self.queue_name = self._config['servicely']['queue_name']
         self.st2_key_name = 'servicely.executions'
 
         st2_fqdn = socket.getfqdn()
@@ -57,7 +56,7 @@ class ServicelyExecutionMonitor(PollingSensor):
         # Fetch queue results with specific error handling
         self._logger.info(f"Checking for Async Executions: {self.st2_key_name}")
         servicely_executions_dict = {}
-        
+
         try:
             servicely_executions = self.st2_client.keys.get_by_name(name=self.st2_key_name)
 
@@ -66,13 +65,13 @@ class ServicelyExecutionMonitor(PollingSensor):
         except Exception as e:
             self._logger.error(f"Unexpected error processing st2 key {self.st2_key_name}: {str(e)}")
             raise
-        
+
         if not servicely_executions_dict:
             self._logger.info("No active Async Executions")
             return True
 
         self._logger.info(f"Found {len(servicely_executions_dict)} async executions to check")
-            
+
         # Process each result with specific error handling for each REST call
         for execution_id, task in servicely_executions_dict.items():
             try:
@@ -83,18 +82,25 @@ class ServicelyExecutionMonitor(PollingSensor):
 
                 self._logger.info(f"Execution {execution_id} is finished")
                 record_id = task.get('id')
-                trigger_playload = {
-                    'queue_name': self.queue_name,
+
+                # Extract source connection info stored by task_start
+                source_conn = task.get('source_connection', {})
+
+                trigger_payload = {
+                    'queue_name': source_conn.get('queue_name', ''),
                     'record_id': record_id,
                     'execution_id': execution_id,
-                    'task': task
+                    'task': task,
+                    'server': source_conn.get('server', ''),
+                    'endpoint': source_conn.get('endpoint', ''),
+                    'token': source_conn.get('token', '')
                 }
-                self._sensor_service.dispatch(trigger=self.trigger_ref, payload=trigger_playload)
+                self._sensor_service.dispatch(trigger=self.trigger_ref, payload=trigger_payload)
                 self._logger.info(f"dispatched trigger for execution {execution_id}")
             except Exception as e:
                 self._logger.error(f"Unexpected error processing execution {execution_id}: {str(e)}")
                 continue
-        
+
         return True
 
     def cleanup(self):

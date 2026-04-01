@@ -19,6 +19,15 @@
           task:
             type: "object"
             format: "Servicely playload that was sent"
+          server:
+            type: "string"
+            format: "Servicely server hostname"
+          endpoint:
+            type: "string"
+            format: "Servicely API endpoint"
+          token:
+            type: "string"
+            format: "Servicely API token"
     - name: "task_start"
       description: "send task to stackstorm"
       payload_schema:
@@ -33,3 +42,12 @@
           task:
             type: "object"
             format: "Servicely playload that was sent"
+          server:
+            type: "string"
+            format: "Servicely server hostname"
+          endpoint:
+            type: "string"
+            format: "Servicely API endpoint"
+          token:
+            type: "string"
+            format: "Servicely API token"

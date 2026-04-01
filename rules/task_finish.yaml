@@ -11,6 +11,9 @@ trigger:
 action:
   ref: "servicely.task_finish"
   parameters:
+    server: "{{ trigger.server }}"
+    endpoint: "{{ trigger.endpoint }}"
+    token: "{{ trigger.token }}"
     queue_name: "{{ trigger.queue_name }}"
     record_id: "{{ trigger.record_id }}"
     execution_id: "{{ trigger.execution_id }}"

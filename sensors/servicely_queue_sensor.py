@@ -31,57 +31,72 @@ class ServicelyQueueSensor(PollingSensor):
         self.trigger_ref_async = "servicely.task_start"
 
     def setup(self):
-        self.server = self._config['servicely']['server']
-        self.endpoint = self._config['servicely']['endpoint']
-        self.token = self._config['servicely']['token']
-        self.queue_name = self._config['servicely']['queue_name']
-
-        self.servicely_queue_url = "https://{0}{1}?Queue={2}&QueueType=output&State=ready&fields=Subject,Payload,id,Queue".format(self.server, self.endpoint, self.queue_name)
-        self.headers = {'Authorization': f'Bearer {self.token}'}
+        self.connections = self._config['servicely']['connections']
 
     def poll(self):
-        # Fetch queue results with specific error handling
-        self._logger.info(f"Polling servicely queue: {self.servicely_queue_url}")
+        for conn in self.connections:
+            server = conn['server']
+            endpoint = conn['endpoint']
+            token = conn['token']
+            queue_name = conn['queue_name']
+
+            try:
+                self._poll_connection(server, endpoint, token, queue_name)
+            except Exception as e:
+                self._logger.error(f"Failed to poll connection {server}: {str(e)}")
+                continue
+
+        return True
+
+    def _poll_connection(self, server, endpoint, token, queue_name):
+        """Poll a single Servicely connection for queue items."""
+        servicely_queue_url = "https://{0}{1}?Queue={2}&QueueType=output&State=ready&fields=Subject,Payload,id,Queue".format(
+            server, endpoint, queue_name)
+        headers = {'Authorization': f'Bearer {token}'}
+
+        self._logger.info(f"Polling servicely queue: {servicely_queue_url}")
 
         try:
-            response = requests.get(self.servicely_queue_url, headers=self.headers, timeout=30)
+            response = requests.get(servicely_queue_url, headers=headers, timeout=30)
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
             if response.status_code == 404:
                 self._logger.info("No results found in queue")
-                return True
+                return
             else:
-                raise  # Re-raise the exception for other HTTP errors
+                raise
         except requests.exceptions.RequestException:
-            raise  # Re-raise for other request-related exceptions (timeout, connection errors, etc.)
+            raise
 
         queue_results = response.json()
 
         if not queue_results:
             self._logger.info("No results found in queue")
-            return True
+            return
 
         self._logger.info(f"Found {len(queue_results['data'])} results in queue")
 
-        # Process each result with specific error handling for each REST call
         for result in queue_results['data']:
             try:
                 record_id = result.get('id')
                 record_payload = result.get('Payload')
                 parsed_payload = self.parse_record_payload(record_payload)
 
-                trigger_playload = {
-                    'queue_name': self.queue_name,
+                trigger_payload = {
+                    'queue_name': queue_name,
                     'record_id': record_id,
                     'task': result,
+                    'server': server,
+                    'endpoint': endpoint,
+                    'token': token,
                     'servicely_parameters': parsed_payload.get('servicely_parameters', {})
                 }
                 is_async = parsed_payload['is_async']
 
                 if is_async:
-                    self._sensor_service.dispatch(trigger=self.trigger_ref_async, payload=trigger_playload)
+                    self._sensor_service.dispatch(trigger=self.trigger_ref_async, payload=trigger_payload)
                 else:
-                    self._sensor_service.dispatch(trigger=self.trigger_ref, payload=trigger_playload)
+                    self._sensor_service.dispatch(trigger=self.trigger_ref, payload=trigger_payload)
 
                 self._logger.info(f"dispatched trigger for record {record_id}")
             except KeyError as e:
@@ -90,8 +105,6 @@ class ServicelyQueueSensor(PollingSensor):
             except Exception as e:
                 self._logger.error(f"Unexpected error processing record {record_id}: {str(e)}")
                 continue
-
-        return True
 
     def parse_record_payload(self, record_payload):
         """Parse record_payload and extract parameters, is_async flag, and servicely_parameters (case-insensitive)."""

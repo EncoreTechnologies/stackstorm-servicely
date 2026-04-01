@@ -22,3 +22,12 @@
           task:
             type: "object"
             format: "Servicely playload that was sent"
+          server:
+            type: "string"
+            format: "Servicely server hostname"
+          endpoint:
+            type: "string"
+            format: "Servicely API endpoint"
+          token:
+            type: "string"
+            format: "Servicely API token"

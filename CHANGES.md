@@ -2,6 +2,12 @@
 
 ## v1.0.7
 
+Updates pack config to handle list of connections to poll multiple Servicely instances at once.
+Updates actions to handle new pack config and params.
+Adds StackStorm hostname and Servicely Queue Name as top level fields in response payload.
+
+## v1.0.7
+
 Removes environment-specific servicely token key name and associated logic.
 
 ## v1.0.6
