@@ -66,6 +66,7 @@ class TaskStart(BaseAction):
                     exec_params['servicely_server'] = result_server
                     exec_params['servicely_endpoint'] = endpoint
                     exec_params['servicely_token'] = result_token
+                    exec_params['c_parent'] = record_id
 
                 # Handle st2_actions_get - pass servicely connection parameters
                 if record_subject == 'servicely.st2_actions_get':
@@ -73,6 +74,7 @@ class TaskStart(BaseAction):
                     exec_params['endpoint'] = endpoint
                     exec_params['token'] = result_token
                     exec_params['queue_name'] = result_queue_name
+                    exec_params['c_parent'] = record_id
 
                 execution_result = self.execute_action(record_subject, exec_params, st2_token, is_async=True)
             except Exception as e:
@@ -91,6 +93,7 @@ class TaskStart(BaseAction):
                     "State": "ready",
                     "id": record_id,
                     'Source': execution_id,
+                    "C_parent": record_id,
                     "Payload": json.dumps(error_payload)
                 }
                 self.send_servicely_results(record_id, result_server, endpoint, result_token, st2_payload)

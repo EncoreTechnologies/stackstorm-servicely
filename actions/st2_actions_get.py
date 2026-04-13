@@ -111,7 +111,7 @@ class St2ActionsGet(BaseAction):
 
         return return_action_dict
 
-    def run(self, server, endpoint, token, st2_token, queue_name):
+    def run(self, server, endpoint, token, st2_token, queue_name, c_parent=None):
         """Main entry point for the StackStorm actions to execute the operation.
         :returns: Dictionary of networks
         """
@@ -151,7 +151,8 @@ class St2ActionsGet(BaseAction):
                     server=server,
                     endpoint=endpoint,
                     token=token,
-                    execution_id=execution_id
+                    execution_id=execution_id,
+                    c_parent=c_parent
                 )
                 packs_posted += 1
 

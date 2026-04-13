@@ -1,6 +1,10 @@
 # Change Log
 
-## v1.0.7
+## v2.0.0
+
+Adds C_parent field to top level of response payloads.
+
+## v1.0.8
 
 Updates pack config to handle list of connections to poll multiple Servicely instances at once.
 Updates actions to handle new pack config and params.
