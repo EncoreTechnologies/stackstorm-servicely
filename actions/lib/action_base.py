@@ -231,7 +231,8 @@ class BaseAction(Action):
         endpoint,
         token,
         execution_id=None,
-        timeout=30
+        timeout=30,
+        c_parent=None
     ):
         total_items = 0
         pages_posted = 0
@@ -271,7 +272,8 @@ class BaseAction(Action):
                     server=server,
                     endpoint=endpoint,
                     token=token,
-                    execution_id=execution_id
+                    execution_id=execution_id,
+                    c_parent=c_parent
                 )
                 pages_posted += 1
 
@@ -304,7 +306,8 @@ class BaseAction(Action):
         token,
         execution_id=None,
         chunk_size=100,
-        state="ready"
+        state="ready",
+        c_parent=None
     ):
         chunks_posted = 0
 
@@ -323,7 +326,8 @@ class BaseAction(Action):
                 endpoint=endpoint,
                 token=token,
                 execution_id=execution_id,
-                state=state
+                state=state,
+                c_parent=c_parent
             )
             chunks_posted += 1
 
@@ -341,7 +345,8 @@ class BaseAction(Action):
         endpoint,
         token,
         execution_id=None,
-        state="ready"
+        state="ready",
+        c_parent=None
     ):
         headers = {'Authorization': f'Bearer {token}'}
         servicely_url = f"https://{server}{endpoint}"
@@ -368,6 +373,9 @@ class BaseAction(Action):
 
         if execution_id:
             request_body["Source"] = execution_id
+
+        if c_parent:
+            request_body["C_parent"] = c_parent
 
         try:
             response = requests.post(

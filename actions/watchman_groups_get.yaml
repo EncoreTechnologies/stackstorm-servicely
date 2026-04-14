@@ -18,6 +18,10 @@ parameters:
     type: string
     description: "StackStorm execution ID"
     required: false
+  c_parent:
+    type: string
+    description: "ID of the parent Output record from Servicely"
+    required: false
   watchman_api_key:
     type: string
     description: "Watchman API key for authentication"

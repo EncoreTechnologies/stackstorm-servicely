@@ -75,6 +75,7 @@ class TaskFinish(BaseAction):
                 "State": "ready",
                 "id": record_id,
                 'Source': parent_execution_id,
+                "C_parent": record_id,
                 "Payload": json.dumps(execution_result.to_dict())
             }
 

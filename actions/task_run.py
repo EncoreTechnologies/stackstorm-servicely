@@ -68,6 +68,7 @@ class TaskRun(BaseAction):
                     exec_params['servicely_server'] = result_server
                     exec_params['servicely_endpoint'] = endpoint
                     exec_params['servicely_token'] = result_token
+                    exec_params['c_parent'] = record_id
 
                 # Handle st2_actions_get - pass servicely connection parameters
                 if record_subject == 'servicely.st2_actions_get':
@@ -75,6 +76,7 @@ class TaskRun(BaseAction):
                     exec_params['endpoint'] = endpoint
                     exec_params['token'] = result_token
                     exec_params['queue_name'] = result_queue_name
+                    exec_params['c_parent'] = record_id
 
                 if record_payload:
                     try:
@@ -108,6 +110,7 @@ class TaskRun(BaseAction):
                 "State": "ready",
                 "id": record_id,
                 'Source': execution_id,
+                "C_parent": record_id,
                 "Payload": json.dumps(execution_result)
             }
 

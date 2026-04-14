@@ -23,6 +23,10 @@ parameters:
     description: "Filter criteria from Servicely queue"
     required: false
     default: []
+  c_parent:
+    type: string
+    description: "ID of the parent Output record from Servicely"
+    required: false
   watchman_api_key:
     type: string
     description: "Watchman API key for authentication"

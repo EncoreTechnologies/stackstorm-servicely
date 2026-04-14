@@ -26,3 +26,7 @@ parameters:
     type: "string"
     description: "Servicely Queue name that was used"
     default: "{{ st2kv.system.servicely.queue_name }}"
+  c_parent:
+    type: string
+    description: "ID of the parent Output record from Servicely"
+    required: false

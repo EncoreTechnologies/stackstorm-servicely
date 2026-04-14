@@ -29,7 +29,8 @@ class WatchmanComputersGet(BaseAction):
         servicely_server,
         servicely_endpoint,
         servicely_token,
-        execution_id=None
+        execution_id=None,
+        c_parent=None
     ):
         url = f"https://{watchman_server}/v2.5/computers"
         params = {
@@ -50,7 +51,8 @@ class WatchmanComputersGet(BaseAction):
                 server=servicely_server,
                 endpoint=servicely_endpoint,
                 token=servicely_token,
-                execution_id=execution_id
+                execution_id=execution_id,
+                c_parent=c_parent
             )
 
             self.logger.info(
@@ -82,7 +84,8 @@ class WatchmanComputersGet(BaseAction):
                     endpoint=servicely_endpoint,
                     token=servicely_token,
                     execution_id=execution_id,
-                    state="error"
+                    state="error",
+                    c_parent=c_parent
                 )
             except Exception as post_error:
                 self.logger.error(
