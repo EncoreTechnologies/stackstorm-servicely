@@ -48,6 +48,7 @@ class TaskRun(BaseAction):
             parsed_payload = self.parse_record_payload(record_payload)
             exec_params = parsed_payload['parameters']
             servicely_parameters = parsed_payload.get('servicely_parameters', {})
+            subject_override = parsed_payload.get('subject_override')
 
             # Handle servicely_parameters overrides for sending results
             result_server = original_server
@@ -106,7 +107,7 @@ class TaskRun(BaseAction):
             st2_payload = {
                 "Queue": result_queue_name,
                 "QueueType": "input",
-                "Subject": record_subject,
+                "Subject": subject_override if subject_override else record_subject,
                 "State": "ready",
                 "id": record_id,
                 'Source': execution_id,

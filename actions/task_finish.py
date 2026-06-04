@@ -52,8 +52,9 @@ class TaskFinish(BaseAction):
             if servicely_executions:
                 servicely_executions_dict = json.loads(servicely_executions.value)
 
-            # Check if task has servicely_parameters override stored by task_start
+            # Check if task has overrides stored by task_start
             servicely_parameters = task.get('servicely_parameters', {})
+            subject_override = task.get('subject_override')
 
             # Use override parameters if they exist, otherwise use original
             result_server = servicely_parameters.get('server', original_server)
@@ -71,7 +72,7 @@ class TaskFinish(BaseAction):
             st2_payload = {
                 "Queue": result_queue_name,
                 "QueueType": "input",
-                "Subject": record_subject,
+                "Subject": subject_override if subject_override else record_subject,
                 "State": "ready",
                 "id": record_id,
                 'Source': parent_execution_id,
