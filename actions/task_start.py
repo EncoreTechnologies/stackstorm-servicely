@@ -46,6 +46,7 @@ class TaskStart(BaseAction):
             parsed_payload = self.parse_record_payload(record_payload)
             exec_params = parsed_payload['parameters']
             servicely_parameters = parsed_payload.get('servicely_parameters', {})
+            subject_override = parsed_payload.get('subject_override')
 
             # Handle servicely_parameters overrides for sending results
             result_server = original_server
@@ -89,7 +90,7 @@ class TaskStart(BaseAction):
                 st2_payload = {
                     "Queue": result_queue_name,
                     "QueueType": "input",
-                    "Subject": record_subject,
+                    "Subject": subject_override if subject_override else record_subject,
                     "State": "ready",
                     "id": record_id,
                     'Source': execution_id,
@@ -130,6 +131,8 @@ class TaskStart(BaseAction):
                 'token': result_token,
                 'queue_name': result_queue_name
             }
+            if subject_override:
+                task_with_params['subject_override'] = subject_override
             servicely_executions_dict[execution_result] = task_with_params
 
             st2_key_pair = KeyValuePair(name='servicely.executions', value=json.dumps(servicely_executions_dict))

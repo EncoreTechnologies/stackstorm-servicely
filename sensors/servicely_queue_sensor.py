@@ -108,7 +108,7 @@ class ServicelyQueueSensor(PollingSensor):
 
     def parse_record_payload(self, record_payload):
         """Parse record_payload and extract parameters, is_async flag, and servicely_parameters (case-insensitive)."""
-        default_result = {'parameters': {}, 'is_async': None, 'servicely_parameters': {}}
+        default_result = {'parameters': {}, 'is_async': None, 'servicely_parameters': {}, 'subject_override': None}
 
         if not isinstance(record_payload, str):
             return default_result
@@ -126,9 +126,9 @@ class ServicelyQueueSensor(PollingSensor):
         if payload_lower in empty_patterns:
             # Extract is_async from the pattern if present
             if 'is_async=true' in payload_lower:
-                return {'parameters': {}, 'is_async': True, 'servicely_parameters': {}}
+                return {'parameters': {}, 'is_async': True, 'servicely_parameters': {}, 'subject_override': None}
             elif 'is_async=false' in payload_lower:
-                return {'parameters': {}, 'is_async': False, 'servicely_parameters': {}}
+                return {'parameters': {}, 'is_async': False, 'servicely_parameters': {}, 'subject_override': None}
             return default_result
 
         try:
@@ -140,7 +140,8 @@ class ServicelyQueueSensor(PollingSensor):
                 default_result = {
                     'parameters': parsed_lower.get('parameters', {}),
                     'is_async': parsed_lower.get('is_async', None),
-                    'servicely_parameters': parsed_lower.get('servicely_parameters', {})
+                    'servicely_parameters': parsed_lower.get('servicely_parameters', {}),
+                    'subject_override': parsed_lower.get('subject_override', None)
                 }
         except (json.JSONDecodeError, KeyError, TypeError):
             return default_result

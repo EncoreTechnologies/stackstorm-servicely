@@ -1,5 +1,9 @@
 # Change Log
 
+## v2.0.1
+
+Adds override for Subject field when sending Input payload back to Servicely
+
 ## v2.0.0
 
 Adds C_parent field to top level of response payloads.
