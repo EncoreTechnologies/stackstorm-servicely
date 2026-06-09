@@ -27,6 +27,10 @@ parameters:
     type: string
     description: "ID of the parent Output record from Servicely"
     required: false
+  subject_override:
+    type: string
+    description: "Override subject for input records sent back to Servicely"
+    required: false
   watchman_api_key:
     type: string
     description: "Watchman API key for authentication"
