@@ -70,6 +70,8 @@ class TaskRun(BaseAction):
                     exec_params['servicely_endpoint'] = endpoint
                     exec_params['servicely_token'] = result_token
                     exec_params['c_parent'] = record_id
+                    if subject_override:
+                        exec_params['subject_override'] = subject_override
 
                 # Handle st2_actions_get - pass servicely connection parameters
                 if record_subject == 'servicely.st2_actions_get':
@@ -78,6 +80,8 @@ class TaskRun(BaseAction):
                     exec_params['token'] = result_token
                     exec_params['queue_name'] = result_queue_name
                     exec_params['c_parent'] = record_id
+                    if subject_override:
+                        exec_params['subject_override'] = subject_override
 
                 if record_payload:
                     try:

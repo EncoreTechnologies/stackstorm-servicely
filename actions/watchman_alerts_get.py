@@ -31,8 +31,10 @@ class WatchmanAlertsGet(BaseAction):
         servicely_token,
         execution_id=None,
         filter_criteria=None,
-        c_parent=None
+        c_parent=None,
+        subject_override=None
     ):
+        result_subject = subject_override if subject_override else subject
         url = f"https://{watchman_server}/v2.5/computers"
         params = {
             'api_key': watchman_api_key,
@@ -79,7 +81,7 @@ class WatchmanAlertsGet(BaseAction):
             chunks_posted = self.post_data_in_chunks(
                 data=filtered_computers,
                 queue_name=queue_name,
-                subject=subject,
+                subject=result_subject,
                 server=servicely_server,
                 endpoint=servicely_endpoint,
                 token=servicely_token,
@@ -111,7 +113,7 @@ class WatchmanAlertsGet(BaseAction):
                 }
                 self.post_to_servicely_queue(
                     queue_name=queue_name,
-                    subject=subject,
+                    subject=result_subject,
                     payload=error_payload,
                     server=servicely_server,
                     endpoint=servicely_endpoint,

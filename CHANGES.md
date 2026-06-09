@@ -1,5 +1,9 @@
 # Change Log
 
+## v2.0.2
+
+Fixes Subject field override for mulitple-input actions
+
 ## v2.0.1
 
 Adds override for Subject field when sending Input payload back to Servicely

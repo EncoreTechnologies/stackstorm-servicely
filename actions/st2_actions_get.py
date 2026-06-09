@@ -111,11 +111,12 @@ class St2ActionsGet(BaseAction):
 
         return return_action_dict
 
-    def run(self, server, endpoint, token, st2_token, queue_name, c_parent=None):
+    def run(self, server, endpoint, token, st2_token, queue_name, c_parent=None, subject_override=None):
         """Main entry point for the StackStorm actions to execute the operation.
         :returns: Dictionary of networks
         """
         execution_id = os.environ.get('ST2_ACTION_EXECUTION_ID')
+        result_subject = subject_override if subject_override else "servicely.st2_actions_get"
         pack_separated_actions = {}
 
         try:
@@ -146,7 +147,7 @@ class St2ActionsGet(BaseAction):
 
                 self.post_to_servicely_queue(
                     queue_name=queue_name,
-                    subject="servicely.st2_actions_get",
+                    subject=result_subject,
                     payload=pack_payload,
                     server=server,
                     endpoint=endpoint,
