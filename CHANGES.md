@@ -1,5 +1,9 @@
 # Change Log
 
+## v2.1.0
+
+Adds optional per-server tuning to the queue sensor: configurable poll_interval and a process_one flag that serializes processing to a single task at a time. Supports running a fast processing server alongside the default one off the same pack.
+
 ## v2.0.2
 
 Fixes Subject field override for mulitple-input actions

@@ -9,6 +9,14 @@ servicely:
       description: StackStorm API token for executing actions
       default: st21234
       secret: true
+    poll_interval:
+      type: string
+      description: Seconds between queue polls; overrides the sensor default when set
+      default: "60"
+    process_one:
+      type: string
+      description: When "true", process a single task at a time (polling continues but no new task is dispatched until the current one finishes)
+      default: "false"
     connections:
       type: array
       description: List of Servicely connections to poll for queue items
