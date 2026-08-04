@@ -485,19 +485,23 @@ class BaseAction(Action):
 
     def send_execution_result(self, record_id, server, endpoint, token,
                               queue_name, subject, execution_id,
-                              execution_result, batch_size=500):
+                              execution_result, batch_size=None):
         """Post an execution result back to Servicely, batching large lists.
 
-        When the action result contains a list longer than batch_size, a header
-        record (the execution result with that list emptied) is posted first,
-        followed by the list contents in batches. Otherwise the full execution
-        result is posted as a single record, preserving prior behavior.
+        Batching is opt-in: it only happens when batch_size is supplied. In
+        that case, when the action result contains a list longer than
+        batch_size, a header record (the execution result with that list
+        emptied) is posted first, followed by the list contents in batches.
+        When batch_size is not supplied, or nothing qualifies, the full
+        execution result is posted as a single record.
         """
-        batch_size = self.normalize_batch_size(batch_size)
-
-        list_path, list_data = self.find_batchable_list(
-            execution_result, batch_size
-        )
+        if batch_size is None:
+            list_path, list_data = None, None
+        else:
+            batch_size = self.normalize_batch_size(batch_size)
+            list_path, list_data = self.find_batchable_list(
+                execution_result, batch_size
+            )
 
         if list_path is None:
             st2_payload = {

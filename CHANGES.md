@@ -2,7 +2,7 @@
 
 ## v2.2.0
 
-Batches large list results when sending them back to Servicely. When an action result is a list, or a dict with a single large list value, longer than 500 items, the result is posted as a header record followed by the list in batches of 500. Also raises the result POST timeout and surfaces the real error when a result post fails. Batch size is a changeable parameter.
+Batches large list results when sending them back to Servicely. Batching is optional via a `batch_size` parameter on the queue payload: when supplied and if exceeded, the result is posted as a header record followed by the list in batches of `batch_size`. When `batch_size` is not supplied, the full result is posted as a single record.
 
 ## v2.1.0
 
