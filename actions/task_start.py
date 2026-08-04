@@ -47,6 +47,7 @@ class TaskStart(BaseAction):
             exec_params = parsed_payload['parameters']
             servicely_parameters = parsed_payload.get('servicely_parameters', {})
             subject_override = parsed_payload.get('subject_override')
+            batch_size = parsed_payload.get('batch_size')
 
             # Handle servicely_parameters overrides for sending results
             result_server = original_server
@@ -137,6 +138,8 @@ class TaskStart(BaseAction):
             }
             if subject_override:
                 task_with_params['subject_override'] = subject_override
+            if batch_size is not None:
+                task_with_params['batch_size'] = batch_size
             servicely_executions_dict[execution_result] = task_with_params
 
             st2_key_pair = KeyValuePair(name='servicely.executions', value=json.dumps(servicely_executions_dict))

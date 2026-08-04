@@ -1,5 +1,9 @@
 # Change Log
 
+## v2.2.0
+
+Batches large list results when sending them back to Servicely. Batching is optional via a `batch_size` parameter on the queue payload: when supplied and if exceeded, the result is posted as a header record followed by the list in batches of `batch_size`. When `batch_size` is not supplied, the full result is posted as a single record.
+
 ## v2.1.0
 
 Adds optional per-server tuning to the queue sensor: configurable poll_interval and a process_one flag that serializes processing to a single task at a time. Supports running a fast processing server alongside the default one off the same pack.
