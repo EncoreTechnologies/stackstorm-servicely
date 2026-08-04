@@ -55,6 +55,7 @@ class TaskFinish(BaseAction):
             # Check if task has overrides stored by task_start
             servicely_parameters = task.get('servicely_parameters', {})
             subject_override = task.get('subject_override')
+            batch_size = task.get('batch_size')
 
             # Use override parameters if they exist, otherwise use original
             result_server = servicely_parameters.get('server', original_server)
@@ -68,26 +69,30 @@ class TaskFinish(BaseAction):
             st2_key_pair = KeyValuePair(name='servicely.executions', value=json.dumps(servicely_executions_dict))
             st2_client.keys.update(st2_key_pair)
 
-            # Send results to the override server/queue if specified, otherwise to original
-            st2_payload = {
-                "Queue": result_queue_name,
-                "QueueType": "input",
-                "Subject": subject_override if subject_override else record_subject,
-                "State": "ready",
-                "id": record_id,
-                'Source': parent_execution_id,
-                "C_parent": record_id,
-                "Payload": json.dumps(execution_result.to_dict())
-            }
-
-            # Try to send results to the result server (may be overridden)
+            # Send results back to Servicely, batching
+            # large list results. Falls back to a single post otherwise.
+            result_subject = subject_override if subject_override else record_subject
             try:
-                self.send_servicely_results(record_id, result_server, result_endpoint, result_token, st2_payload)
+                self.send_execution_result(
+                    record_id=record_id,
+                    server=result_server,
+                    endpoint=result_endpoint,
+                    token=result_token,
+                    queue_name=result_queue_name,
+                    subject=result_subject,
+                    execution_id=parent_execution_id,
+                    execution_result=execution_result.to_dict(),
+                    batch_size=batch_size
+                )
             except Exception as e:
-                # If sending to override server fails, update original server's state to error
+                # If sending to the result server fails, mark the original
+                # server's record as errored
                 error_msg = f"Failed to send results to {result_server}: {str(e)}"
                 self.logger.error(error_msg)
-                self.update_servicely_state(original_server, endpoint, original_token, original_queue_name, record_id, execution_id, task, 'error')
+                self.update_servicely_state(
+                    original_server, endpoint, original_token,
+                    original_queue_name, record_id, execution_id, task, 'error'
+                )
                 return {'success': False, 'error': error_msg}
 
             # Determine final state based on execution result

@@ -22,6 +22,7 @@ import socket
 import requests
 import time
 import json
+import copy
 
 
 class BaseAction(Action):
@@ -64,21 +65,26 @@ class BaseAction(Action):
         except (json.JSONDecodeError, TypeError):
             pass
 
+        st2_final_response = None
         try:
             st2_final_response = requests.post(
                 servicely_Async_url,
                 json=payload,
                 headers=headers,
-                timeout=30
+                timeout=120
             )
             st2_final_response.raise_for_status()
             self.logger.info(f"Successfully posted results for record {record_id}")
         except requests.exceptions.RequestException as e:
+            if st2_final_response is not None:
+                response_content = st2_final_response.content
+            else:
+                response_content = 'no response (request failed before send)'
             self.logger.error(f"method: POST")
             self.logger.error(f"headers: {headers}")
             self.logger.error(f"url: {servicely_Async_url}")
             self.logger.error(f"payload: {payload}")
-            self.logger.error(f"response: {st2_final_response.content}")
+            self.logger.error(f"response: {response_content}")
             self.logger.error(f"Failed to post results for record {record_id}: {str(e)}")
             # raise
             pass
@@ -100,6 +106,7 @@ class BaseAction(Action):
             'State': state
         }
 
+        update_response = None
         try:
             update_response = requests.patch(
                 async_id_url,
@@ -110,11 +117,15 @@ class BaseAction(Action):
             update_response.raise_for_status()
             self.logger.info(f"Successfully updated record {record_id} to {state} state")
         except requests.exceptions.RequestException as e:
+            if update_response is not None:
+                response_content = update_response.content
+            else:
+                response_content = 'no response (request failed before send)'
             self.logger.error(f"method: PATCH")
             self.logger.error(f"headers: {headers}")
             self.logger.error(f"url: {async_id_url}")
             self.logger.error(f"payload: {update_payload}")
-            self.logger.error(f"response: {update_response.content}")
+            self.logger.error(f"response: {response_content}")
             self.logger.error(f"Failed to update record {record_id} to {state} state: {str(e)}")
             # raise
             pass
@@ -145,7 +156,13 @@ class BaseAction(Action):
 
     def parse_record_payload(self, record_payload):
         """Parse record_payload and extract parameters and is_async flag (case-insensitive)."""
-        default_result = {'parameters': {}, 'is_async': None, 'servicely_parameters': {}, 'subject_override': None}
+        default_result = {
+            'parameters': {},
+            'is_async': None,
+            'servicely_parameters': {},
+            'subject_override': None,
+            'batch_size': None
+        }
 
         if not isinstance(record_payload, str):
             return default_result
@@ -163,9 +180,13 @@ class BaseAction(Action):
         if payload_lower in empty_patterns:
             # Extract is_async from the pattern if present
             if 'is_async=true' in payload_lower:
-                return {'parameters': {}, 'is_async': True, 'servicely_parameters': {}, 'subject_override': None}
+                empty_result = dict(default_result)
+                empty_result['is_async'] = True
+                return empty_result
             elif 'is_async=false' in payload_lower:
-                return {'parameters': {}, 'is_async': False, 'servicely_parameters': {}, 'subject_override': None}
+                empty_result = dict(default_result)
+                empty_result['is_async'] = False
+                return empty_result
             return default_result
 
         try:
@@ -178,7 +199,8 @@ class BaseAction(Action):
                     'parameters': parsed_lower.get('parameters', {}),
                     'is_async': parsed_lower.get('is_async', None),
                     'servicely_parameters': parsed_lower.get('servicely_parameters', {}),
-                    'subject_override': parsed_lower.get('subject_override', None)
+                    'subject_override': parsed_lower.get('subject_override', None),
+                    'batch_size': parsed_lower.get('batch_size', None)
                 }
         except (json.JSONDecodeError, KeyError, TypeError):
             return default_result
@@ -399,6 +421,134 @@ class BaseAction(Action):
                 self.logger.error(f"Payload: {type(payload).__name__}")
             self.logger.error(f"Error: {str(e)}")
             raise
+
+        return True
+
+    def find_batchable_list(self, execution_result, batch_size):
+        """Locate a list in an action result that is eligible for batching.
+
+        Returns a (path, list) tuple where path is the list of keys leading to
+        the list within execution_result, or (None, None) when nothing
+        qualifies. Two shapes are handled:
+          - the action result is itself a list longer than batch_size
+          - the action result is a dict with exactly one top-level value that
+            is a list longer than batch_size
+        Anything else (multiple large lists, more deeply nested lists, or
+        lists at or below batch_size) is left for a single post.
+        """
+        try:
+            action_result = execution_result['result']['result']
+        except (KeyError, TypeError):
+            return None, None
+
+        if isinstance(action_result, list):
+            if len(action_result) > batch_size:
+                return ['result', 'result'], action_result
+            return None, None
+
+        if isinstance(action_result, dict):
+            large_keys = [
+                key for key, value in action_result.items()
+                if isinstance(value, list) and len(value) > batch_size
+            ]
+            if len(large_keys) == 1:
+                key = large_keys[0]
+                return ['result', 'result', key], action_result[key]
+            if len(large_keys) > 1:
+                self.logger.info(
+                    f"Multiple batchable lists {large_keys} found; "
+                    f"posting result as a single record"
+                )
+
+        return None, None
+
+    def set_by_path(self, obj, path, value):
+        """Set a nested value in obj by following a list of keys (path)."""
+        target = obj
+        for key in path[:-1]:
+            target = target[key]
+        target[path[-1]] = value
+
+    def normalize_batch_size(self, batch_size, default=500):
+        """Convert batch_size to a positive int, falling back to default.
+
+        Tolerates a batch_size supplied by Servicely as an int, a numeric
+        string, or None (no override).
+        """
+        try:
+            batch_size = int(batch_size)
+        except (TypeError, ValueError):
+            return default
+        if batch_size < 1:
+            return default
+        return batch_size
+
+    def send_execution_result(self, record_id, server, endpoint, token,
+                              queue_name, subject, execution_id,
+                              execution_result, batch_size=500):
+        """Post an execution result back to Servicely, batching large lists.
+
+        When the action result contains a list longer than batch_size, a header
+        record (the execution result with that list emptied) is posted first,
+        followed by the list contents in batches. Otherwise the full execution
+        result is posted as a single record, preserving prior behavior.
+        """
+        batch_size = self.normalize_batch_size(batch_size)
+
+        list_path, list_data = self.find_batchable_list(
+            execution_result, batch_size
+        )
+
+        if list_path is None:
+            st2_payload = {
+                "Queue": queue_name,
+                "QueueType": "input",
+                "Subject": subject,
+                "State": "ready",
+                "id": record_id,
+                "Source": execution_id,
+                "C_parent": record_id,
+                "Payload": json.dumps(execution_result)
+            }
+            self.send_servicely_results(
+                record_id, server, endpoint, token, st2_payload
+            )
+            return True
+
+        # A large list was found: post the surrounding result as a header
+        # record, then the list contents in batches. post_to_servicely_queue
+        # and post_data_in_chunks raise on failure so the caller can mark the
+        # record errored.
+        self.logger.info(
+            f"Batching {len(list_data)} items for record {record_id} "
+            f"in chunks of {batch_size}"
+        )
+
+        header = copy.deepcopy(execution_result)
+        self.set_by_path(header, list_path, [])
+
+        self.post_to_servicely_queue(
+            queue_name=queue_name,
+            subject=subject,
+            payload=header,
+            server=server,
+            endpoint=endpoint,
+            token=token,
+            execution_id=execution_id,
+            c_parent=record_id
+        )
+
+        self.post_data_in_chunks(
+            data=list_data,
+            queue_name=queue_name,
+            subject=subject,
+            server=server,
+            endpoint=endpoint,
+            token=token,
+            execution_id=execution_id,
+            chunk_size=batch_size,
+            c_parent=record_id
+        )
 
         return True
 

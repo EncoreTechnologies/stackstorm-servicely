@@ -1,5 +1,9 @@
 # Change Log
 
+## v2.2.0
+
+Batches large list results when sending them back to Servicely. When an action result is a list, or a dict with a single large list value, longer than 500 items, the result is posted as a header record followed by the list in batches of 500. Also raises the result POST timeout and surfaces the real error when a result post fails. Batch size is a changeable parameter.
+
 ## v2.1.0
 
 Adds optional per-server tuning to the queue sensor: configurable poll_interval and a process_one flag that serializes processing to a single task at a time. Supports running a fast processing server alongside the default one off the same pack.
