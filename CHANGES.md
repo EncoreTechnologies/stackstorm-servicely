@@ -1,5 +1,9 @@
 # Change Log
 
+## v2.2.1
+
+Allows servicely_* parameters to be passed through to any action that declares them as a parameter.
+
 ## v2.2.0
 
 Batches large list results when sending them back to Servicely. Batching is optional via a `batch_size` parameter on the queue payload: when supplied and if exceeded, the result is posted as a header record followed by the list in batches of `batch_size`. When `batch_size` is not supplied, the full result is posted as a single record.
