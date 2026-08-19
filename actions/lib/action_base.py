@@ -51,6 +51,36 @@ class BaseAction(Action):
 
         return st2_client
 
+    def inject_connection_params(self, st2_client, subject, exec_params,
+                                 server, token, endpoint, queue_name):
+        # Pass the calling Servicely connection into any action that declares
+        # one of the reserved 'servicely_*' params. Declaring the param is how
+        # an action opts in
+        connection_params = {
+            'servicely_server': server,
+            'servicely_token': token,
+            'servicely_endpoint': endpoint,
+            'servicely_queue_name': queue_name,
+        }
+
+        try:
+            action_meta = st2_client.actions.get_by_ref_or_id(subject)
+        except Exception as e:
+            self.logger.error("Could not look up parameters for {}: {}".format(subject, str(e)))
+            return exec_params
+
+        if not action_meta:
+            self.logger.error("Action {} not found, skipping connection injection".format(subject))
+            return exec_params
+
+        declared = getattr(action_meta, 'parameters', None) or {}
+        for name, value in connection_params.items():
+            if name in declared:
+                exec_params[name] = value
+                self.logger.info("Injecting {} from Servicely connection".format(name))
+
+        return exec_params
+
     def send_servicely_results(self, record_id, server, endpoint, token, payload):
         headers = {'Authorization': f'Bearer {token}'}
         servicely_Async_url = "https://{0}{1}".format(server, endpoint)

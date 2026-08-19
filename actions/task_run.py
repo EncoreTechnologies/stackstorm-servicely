@@ -92,6 +92,13 @@ class TaskRun(BaseAction):
                     except (json.JSONDecodeError, TypeError):
                         pass
 
+                # Inject the calling Servicely connection into any action that
+                # declares the reserved servicely_* params
+                st2_client = self.setup_st2_client(st2_token)
+                exec_params = self.inject_connection_params(
+                    st2_client, record_subject, exec_params,
+                    result_server, result_token, endpoint, result_queue_name)
+
                 execution_result = self.execute_action(
                     record_subject,
                     exec_params,
