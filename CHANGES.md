@@ -1,5 +1,9 @@
 # Change Log
 
+## v2.2.2
+
+Fixes the payload format of batched result records.
+
 ## v2.2.1
 
 Allows servicely_* parameters to be passed through to any action that declares them as a parameter.

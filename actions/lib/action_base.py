@@ -389,6 +389,61 @@ class BaseAction(Action):
 
         return chunks_posted
 
+    def post_result_in_chunks(
+        self,
+        execution_result,
+        list_path,
+        queue_name,
+        subject,
+        server,
+        endpoint,
+        token,
+        execution_id=None,
+        chunk_size=500,
+        state="ready",
+        c_parent=None
+    ):
+        """Post a batched list back to Servicely inside the execution result.
+
+        Different from post_data_in_chunks, which posts the raw list This method
+        maintains the result.result shape the header record has for every record.
+        """
+        data = self.get_by_path(execution_result, list_path)
+        chunks_posted = 0
+
+        # Copy the surrounding result once with the batched list emptied, so
+        # each chunk only copies the envelope rather than the full list
+        template = copy.deepcopy(execution_result)
+        self.set_by_path(template, list_path, [])
+
+        for i in range(0, len(data), chunk_size):
+            chunk = data[i:i + chunk_size]
+
+            self.logger.info(
+                f"Posting chunk {chunks_posted + 1}: {len(chunk)} items"
+            )
+
+            chunk_result = copy.deepcopy(template)
+            self.set_by_path(chunk_result, list_path, chunk)
+
+            self.post_to_servicely_queue(
+                queue_name=queue_name,
+                subject=subject,
+                payload=chunk_result,
+                server=server,
+                endpoint=endpoint,
+                token=token,
+                execution_id=execution_id,
+                state=state,
+                c_parent=c_parent
+            )
+            chunks_posted += 1
+
+            if i + chunk_size < len(data):
+                time.sleep(1)
+
+        return chunks_posted
+
     def post_to_servicely_queue(
         self,
         queue_name,
@@ -492,6 +547,13 @@ class BaseAction(Action):
 
         return None, None
 
+    def get_by_path(self, obj, path):
+        """Get a nested value from obj by following a list of keys (path)."""
+        target = obj
+        for key in path:
+            target = target[key]
+        return target
+
     def set_by_path(self, obj, path, value):
         """Set a nested value in obj by following a list of keys (path)."""
         target = obj
@@ -517,13 +579,9 @@ class BaseAction(Action):
                               queue_name, subject, execution_id,
                               execution_result, batch_size=None):
         """Post an execution result back to Servicely, batching large lists.
-
-        Batching is opt-in: it only happens when batch_size is supplied. In
-        that case, when the action result contains a list longer than
-        batch_size, a header record (the execution result with that list
-        emptied) is posted first, followed by the list contents in batches.
-        When batch_size is not supplied, or nothing qualifies, the full
-        execution result is posted as a single record.
+        Batching is optional, triggered by batch_size param. If supplied, and the
+        action result contains a list longer than batch_size, a header record is
+        posted first, followed by the list contents in batches.
         """
         if batch_size is None:
             list_path, list_data = None, None
@@ -551,8 +609,8 @@ class BaseAction(Action):
 
         # A large list was found: post the surrounding result as a header
         # record, then the list contents in batches. post_to_servicely_queue
-        # and post_data_in_chunks raise on failure so the caller can mark the
-        # record errored.
+        # and post_result_in_chunks raise on failure so the caller can mark
+        # the record errored.
         self.logger.info(
             f"Batching {len(list_data)} items for record {record_id} "
             f"in chunks of {batch_size}"
@@ -572,8 +630,9 @@ class BaseAction(Action):
             c_parent=record_id
         )
 
-        self.post_data_in_chunks(
-            data=list_data,
+        self.post_result_in_chunks(
+            execution_result=execution_result,
+            list_path=list_path,
             queue_name=queue_name,
             subject=subject,
             server=server,
